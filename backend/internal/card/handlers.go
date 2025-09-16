@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/LoganTackett1/brainstorming-backend/internal/board"
 	"github.com/LoganTackett1/brainstorming-backend/internal/user"
 )
 
@@ -41,8 +42,19 @@ func (h *CardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Check permissions for this board
+		perm, err := board.GetUserPermission(h.DB, userID, boardID)
+		if err != nil {
+			http.Error(w, "Failed to check permissions", http.StatusInternalServerError)
+			return
+		}
+
 		switch r.Method {
 		case http.MethodPost:
+			if perm != board.PermissionOwner && perm != board.PermissionEdit {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
 			var body struct {
 				Text string  `json:"text"`
 				X    float64 `json:"position_x"`
@@ -52,9 +64,9 @@ func (h *CardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Invalid request body", http.StatusBadRequest)
 				return
 			}
-			id, err := CreateCard(h.DB, userID, boardID, body.Text, body.X, body.Y)
+			id, err := CreateCard(h.DB, boardID, body.Text, body.X, body.Y)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusForbidden)
+				http.Error(w, "Failed to create card", http.StatusInternalServerError)
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -66,9 +78,13 @@ func (h *CardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			})
 
 		case http.MethodGet:
-			cards, err := GetCardsByBoard(h.DB, userID, boardID)
+			if perm == board.PermissionNone {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+			cards, err := GetCardsByBoard(h.DB, boardID)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusForbidden)
+				http.Error(w, "Failed to fetch cards", http.StatusInternalServerError)
 				return
 			}
 			json.NewEncoder(w).Encode(cards)
@@ -88,8 +104,30 @@ func (h *CardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Find the board ID for this card so we can check permissions
+		var boardID int64
+		err = h.DB.QueryRow("SELECT board_id FROM cards WHERE id = ?", cardID).Scan(&boardID)
+		if err == sql.ErrNoRows {
+			http.Error(w, "Card not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, "Failed to fetch card", http.StatusInternalServerError)
+			return
+		}
+
+		perm, err := board.GetUserPermission(h.DB, userID, boardID)
+		if err != nil {
+			http.Error(w, "Failed to check permissions", http.StatusInternalServerError)
+			return
+		}
+
 		switch r.Method {
 		case http.MethodPut:
+			if perm != board.PermissionOwner && perm != board.PermissionEdit {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
 			var body struct {
 				Text string  `json:"text"`
 				X    float64 `json:"position_x"`
@@ -99,25 +137,29 @@ func (h *CardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Invalid request body", http.StatusBadRequest)
 				return
 			}
-			affected, err := UpdateCard(h.DB, userID, cardID, body.Text, body.X, body.Y)
+			affected, err := UpdateCard(h.DB, cardID, body.Text, body.X, body.Y)
 			if err != nil {
 				http.Error(w, "Failed to update card", http.StatusInternalServerError)
 				return
 			}
 			if affected == 0 {
-				http.Error(w, "Card not found or not owned by user", http.StatusNotFound)
+				http.Error(w, "Card not found", http.StatusNotFound)
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 
 		case http.MethodDelete:
-			affected, err := DeleteCard(h.DB, userID, cardID)
+			if perm != board.PermissionOwner && perm != board.PermissionEdit {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+			affected, err := DeleteCard(h.DB, cardID)
 			if err != nil {
 				http.Error(w, "Failed to delete card", http.StatusInternalServerError)
 				return
 			}
 			if affected == 0 {
-				http.Error(w, "Card not found or not owned by user", http.StatusNotFound)
+				http.Error(w, "Card not found", http.StatusNotFound)
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})

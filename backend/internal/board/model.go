@@ -6,10 +6,12 @@ import (
 )
 
 type Board struct {
-	ID        int64     `json:"id"`
-	OwnerID   int64     `json:"owner_id"`
-	Title     string    `json:"title"`
-	CreatedAt time.Time `json:"created_at"`
+	ID         int64     `json:"id"`
+	Title      string    `json:"title"`
+	OwnerID    int64     `json:"owner_id"`
+	IsOwner    bool      `json:"is_owner"`
+	Permission string    `json:"permission"` // "owner", "edit", "read"
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // Create a new board
@@ -22,8 +24,21 @@ func CreateBoard(db *sql.DB, ownerID int64, title string) (int64, error) {
 }
 
 // Get all boards for a user
-func GetBoards(db *sql.DB, ownerID int64) ([]Board, error) {
-	rows, err := db.Query("SELECT id, owner_id, title, created_at FROM boards WHERE owner_id = ?", ownerID)
+func GetBoards(db *sql.DB, userID int64) ([]Board, error) {
+	rows, err := db.Query(`
+        SELECT b.id, b.title, b.owner_id, 'owner' AS permission, b.created_at
+        FROM boards b
+        WHERE b.owner_id = ?
+        
+        UNION
+
+        SELECT b.id, b.title, b.owner_id, ba.permission, b.created_at
+        FROM boards b
+        JOIN board_access ba ON b.id = ba.board_id
+        WHERE ba.user_id = ?
+
+        ORDER BY created_at DESC
+    `, userID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -32,9 +47,10 @@ func GetBoards(db *sql.DB, ownerID int64) ([]Board, error) {
 	var boards []Board
 	for rows.Next() {
 		var b Board
-		if err := rows.Scan(&b.ID, &b.OwnerID, &b.Title, &b.CreatedAt); err != nil {
+		if err := rows.Scan(&b.ID, &b.Title, &b.OwnerID, &b.Permission, &b.CreatedAt); err != nil {
 			return nil, err
 		}
+		b.IsOwner = (b.Permission == "owner")
 		boards = append(boards, b)
 	}
 	return boards, nil

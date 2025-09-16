@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/LoganTackett1/brainstorming-backend/internal/card"
+	"github.com/LoganTackett1/brainstorming-backend/internal/boarddetail"
 	"github.com/LoganTackett1/brainstorming-backend/internal/db"
 	"github.com/LoganTackett1/brainstorming-backend/internal/user"
 
@@ -35,14 +35,13 @@ func main() {
 	http.Handle("/login", loginHandler)
 	http.Handle("/me", user.AuthMiddleware(meHandler))
 
-	//Board Routes / Handlers:
-	boardsHandler := &board.BoardHandler{DB: database}
-	http.Handle("/boards", user.AuthMiddleware(boardsHandler))
+	// Board routes
+	boardHandler := &board.BoardHandler{DB: database}
+	http.Handle("/boards", user.AuthMiddleware(boardHandler)) // exact /boards
 
-	//Card Routes / Handlers:
-	cardHandler := &card.CardHandler{DB: database}
-	http.Handle("/boards/", user.AuthMiddleware(cardHandler)) // handles /boards/{id}/cards
-	http.Handle("/cards/", user.AuthMiddleware(cardHandler))
+	// Board detail + cards (delegated inside BoardDetailHandler)
+	boardDetailHandler := &boarddetail.BoardDetailHandler{DB: database}
+	http.Handle("/boards/", user.AuthMiddleware(boardDetailHandler)) // /boards/{id}, /boards/{id}/cards
 
 	log.Println("Server running on :8080")
 	http.ListenAndServe(":8080", nil)

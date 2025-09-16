@@ -2,7 +2,6 @@ package card
 
 import (
 	"database/sql"
-	"errors"
 	"time"
 )
 
@@ -25,15 +24,7 @@ func VerifyBoardOwnership(db *sql.DB, boardID, ownerID int64) (bool, error) {
 	return count == 1, nil
 }
 
-func CreateCard(db *sql.DB, ownerID, boardID int64, text string, x, y float64) (int64, error) {
-	ok, err := VerifyBoardOwnership(db, boardID, ownerID)
-	if err != nil {
-		return 0, err
-	}
-	if !ok {
-		return 0, errors.New("unauthorized: board does not belong to user")
-	}
-
+func CreateCard(db *sql.DB, boardID int64, text string, x, y float64) (int64, error) {
 	res, err := db.Exec(
 		"INSERT INTO cards (board_id, text, position_x, position_y) VALUES (?, ?, ?, ?)",
 		boardID, text, x, y,
@@ -44,19 +35,11 @@ func CreateCard(db *sql.DB, ownerID, boardID int64, text string, x, y float64) (
 	return res.LastInsertId()
 }
 
-func GetCardsByBoard(db *sql.DB, ownerID, boardID int64) ([]Card, error) {
-	ok, err := VerifyBoardOwnership(db, boardID, ownerID)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, errors.New("unauthorized: board does not belong to user")
-	}
-
-	rows, err := db.Query(`
-        SELECT id, board_id, text, position_x, position_y, created_at
-        FROM cards
-        WHERE board_id = ?`, boardID)
+func GetCardsByBoard(db *sql.DB, boardID int64) ([]Card, error) {
+	rows, err := db.Query(
+		"SELECT id, board_id, text, position_x, position_y, created_at FROM cards WHERE board_id = ?",
+		boardID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -73,13 +56,10 @@ func GetCardsByBoard(db *sql.DB, ownerID, boardID int64) ([]Card, error) {
 	return cards, nil
 }
 
-func UpdateCard(db *sql.DB, ownerID, cardID int64, text string, x, y float64) (int64, error) {
-	res, err := db.Exec(`
-        UPDATE cards c
-        JOIN boards b ON c.board_id = b.id
-        SET c.text = ?, c.position_x = ?, c.position_y = ?
-        WHERE c.id = ? AND b.owner_id = ?`,
-		text, x, y, cardID, ownerID,
+func UpdateCard(db *sql.DB, cardID int64, text string, x, y float64) (int64, error) {
+	res, err := db.Exec(
+		"UPDATE cards SET text = ?, position_x = ?, position_y = ? WHERE id = ?",
+		text, x, y, cardID,
 	)
 	if err != nil {
 		return 0, err
@@ -87,13 +67,8 @@ func UpdateCard(db *sql.DB, ownerID, cardID int64, text string, x, y float64) (i
 	return res.RowsAffected()
 }
 
-func DeleteCard(db *sql.DB, ownerID, cardID int64) (int64, error) {
-	res, err := db.Exec(`
-        DELETE c FROM cards c
-        JOIN boards b ON c.board_id = b.id
-        WHERE c.id = ? AND b.owner_id = ?`,
-		cardID, ownerID,
-	)
+func DeleteCard(db *sql.DB, cardID int64) (int64, error) {
+	res, err := db.Exec("DELETE FROM cards WHERE id = ?", cardID)
 	if err != nil {
 		return 0, err
 	}
