@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/LoganTackett1/brainstorming-backend/internal/middleware"
 	"github.com/LoganTackett1/brainstorming-backend/internal/user"
 )
 
@@ -15,7 +16,7 @@ type BoardHandler struct {
 func (h *BoardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	userID := user.GetUserID(r)
 	if userID == 0 {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		middleware.JSONError(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
@@ -23,7 +24,7 @@ func (h *BoardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		boards, err := GetBoards(h.DB, userID)
 		if err != nil {
-			http.Error(w, "Failed to fetch boards", http.StatusInternalServerError)
+			middleware.JSONError(w, "Failed to fetch boards", http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -34,12 +35,12 @@ func (h *BoardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Title string `json:"title"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			middleware.JSONError(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 		id, err := CreateBoard(h.DB, userID, body.Title)
 		if err != nil {
-			http.Error(w, "Failed to create board", http.StatusInternalServerError)
+			middleware.JSONError(w, "Failed to create board", http.StatusInternalServerError)
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -53,11 +54,11 @@ func (h *BoardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Title string `json:"title"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			middleware.JSONError(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 		if err := UpdateBoard(h.DB, body.ID, userID, body.Title); err != nil {
-			http.Error(w, "Failed to update board", http.StatusInternalServerError)
+			middleware.JSONError(w, "Failed to update board", http.StatusInternalServerError)
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
@@ -67,21 +68,21 @@ func (h *BoardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ID int64 `json:"id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			middleware.JSONError(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 		affected, err := DeleteBoard(h.DB, body.ID, userID)
 		if err != nil {
-			http.Error(w, "Failed to delete board", http.StatusInternalServerError)
+			middleware.JSONError(w, "Failed to delete board", http.StatusInternalServerError)
 			return
 		}
 		if affected == 0 {
-			http.Error(w, "Board not found", http.StatusNotFound)
+			middleware.JSONError(w, "Board not found", http.StatusNotFound)
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 
 	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		middleware.JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }

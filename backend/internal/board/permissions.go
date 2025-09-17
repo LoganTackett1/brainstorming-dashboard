@@ -37,3 +37,22 @@ func GetUserPermission(db *sql.DB, userID, boardID int64) (string, error) {
 	// 3. No access
 	return PermissionNone, nil
 }
+
+// For public link access
+func GetSharePermission(db *sql.DB, token string) (int64, string, error) {
+	var boardID int64
+	var perm string
+
+	err := db.QueryRow(
+		"SELECT board_id, permission FROM board_shares WHERE token = ?",
+		token,
+	).Scan(&boardID, &perm)
+	if err == sql.ErrNoRows {
+		return 0, PermissionNone, nil
+	}
+	if err != nil {
+		return 0, PermissionNone, err
+	}
+
+	return boardID, perm, nil
+}

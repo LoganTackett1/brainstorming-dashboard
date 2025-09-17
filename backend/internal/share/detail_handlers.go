@@ -1,66 +1,45 @@
-package boarddetail
+package share
 
 import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/LoganTackett1/brainstorming-backend/internal/board"
 	"github.com/LoganTackett1/brainstorming-backend/internal/card"
 	"github.com/LoganTackett1/brainstorming-backend/internal/middleware"
-	"github.com/LoganTackett1/brainstorming-backend/internal/user"
 )
 
-type BoardDetailHandler struct {
+type ShareDetailHandler struct {
 	DB *sql.DB
 }
 
-// Handles: GET /boards/{id}
-func (h *BoardDetailHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-
+// Handles: GET /share/{token}
+func (h *ShareDetailHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		middleware.JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	userID := user.GetUserID(r)
-	if userID == 0 {
-		middleware.JSONError(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	if !strings.HasPrefix(path, "/boards/") {
-		middleware.JSONError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	parts := strings.Split(path, "/")
+	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 3 {
-		middleware.JSONError(w, "Invalid board ID", http.StatusBadRequest)
+		middleware.JSONError(w, "Invalid share link", http.StatusBadRequest)
 		return
 	}
+	token := parts[2]
 
-	boardID, err := strconv.ParseInt(parts[2], 10, 64)
+	boardID, perm, err := board.GetSharePermission(h.DB, token)
 	if err != nil {
-		middleware.JSONError(w, "Invalid board ID", http.StatusBadRequest)
-		return
-	}
-
-	// Check user’s permission
-	perm, err := board.GetUserPermission(h.DB, userID, boardID)
-	if err != nil {
-		middleware.JSONError(w, "Failed to check permissions", http.StatusInternalServerError)
+		middleware.JSONError(w, "Failed to check share link", http.StatusInternalServerError)
 		return
 	}
 	if perm == board.PermissionNone {
-		middleware.JSONError(w, "Forbidden", http.StatusForbidden)
+		middleware.JSONError(w, "Invalid or expired share link", http.StatusForbidden)
 		return
 	}
 
-	// Fetch board metadata
+	// Fetch baord
 	var b board.Board
 	err = h.DB.QueryRow(
 		"SELECT id, title, owner_id, created_at FROM boards WHERE id = ?",
@@ -82,7 +61,6 @@ func (h *BoardDetailHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Response payload
 	response := map[string]interface{}{
 		"id":         b.ID,
 		"title":      b.Title,
