@@ -1,9 +1,17 @@
 const API_URL = "http://localhost:8080";
 
-let authToken: string | null = null;
+let authToken: string | null = localStorage.getItem("token");
 
+// Save token to memory + localStorage
 export function setToken(token: string) {
   authToken = token;
+  localStorage.setItem("token", token);
+}
+
+// Clear token (for logout)
+export function clearToken() {
+  authToken = null;
+  localStorage.removeItem("token");
 }
 
 async function request(path: string, options: RequestInit = {}) {
@@ -29,12 +37,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
-
   login: (email: string, password: string) =>
     request("/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
-
   me: () => request("/me"),
 };

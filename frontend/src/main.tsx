@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import "./index.css";
 
 import Landing from "./pages/Landing";
@@ -10,17 +10,63 @@ import Dashboard from "./pages/Dashboard";
 import Board from "./pages/Board";
 import Share from "./pages/Share";
 
+import { AuthProvider, AuthContext } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+
+// [1] Layout component with Logout button
+const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, logout } = useContext(AuthContext);
+
+  return (
+    <div>
+      <header className="flex justify-between items-center p-4 bg-gray-100">
+        <Link to="/" className="text-xl font-bold">Brainstorming Dashboard</Link>
+        {user && (
+          <button
+            onClick={logout}
+            className="bg-red-500 text-white px-4 py-2 rounded"
+          >
+            Logout
+          </button>
+        )}
+      </header>
+      <main>{children}</main>
+    </div>
+  );
+};
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/board/:id" element={<Board />} />
-        <Route path="/share/:token" element={<Share />} />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        {/* [2] Wrap routes in Layout */}
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/board/:id"
+              element={
+                <ProtectedRoute>
+                  <Board />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route path="/share/:token" element={<Share />} />
+          </Routes>
+        </Layout>
+      </BrowserRouter>
+    </AuthProvider>
   </React.StrictMode>
 );

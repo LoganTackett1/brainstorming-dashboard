@@ -12,10 +12,13 @@ type User struct {
 }
 
 // CreateUser inserts a new user with a hashed password
-func CreateUser(db *sql.DB, email, password string) error {
-	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	_, err := db.Exec("INSERT INTO users (email, password_hash) VALUES (?, ?)", email, string(hash))
-	return err
+func CreateUser(db *sql.DB, email, password string) (int64, error) {
+	// hash password, insert, etc.
+	res, err := db.Exec("INSERT INTO users (email, password_hash) VALUES (?, ?)", email, password)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
 }
 
 // AuthenticateUser checks if email/password match and returns user ID
