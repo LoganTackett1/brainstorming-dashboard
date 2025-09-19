@@ -43,4 +43,10 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   me: () => request("/me"),
+  getBoards: () => request("/boards"),
+  createBoard: (title: string) => 
+    request("/boards", {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    })
 };
