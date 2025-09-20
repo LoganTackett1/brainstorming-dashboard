@@ -14,7 +14,8 @@ type User struct {
 // CreateUser inserts a new user with a hashed password
 func CreateUser(db *sql.DB, email, password string) (int64, error) {
 	// hash password, insert, etc.
-	res, err := db.Exec("INSERT INTO users (email, password_hash) VALUES (?, ?)", email, password)
+	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	res, err := db.Exec("INSERT INTO users (email, password_hash) VALUES (?, ?)", email, string(hash))
 	if err != nil {
 		return 0, err
 	}
@@ -31,6 +32,15 @@ func AuthenticateUser(db *sql.DB, email, password string) (int64, error) {
 	}
 	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) != nil {
 		return 0, sql.ErrNoRows
+	}
+	return id, nil
+}
+
+func GetUserIDByEmail(db *sql.DB, email string) (int64, error) {
+	var id int64
+	err := db.QueryRow("SELECT id FROM users WHERE email = ?", email).Scan(&id)
+	if err != nil {
+		return 0, err
 	}
 	return id, nil
 }

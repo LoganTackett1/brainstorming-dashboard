@@ -2,12 +2,9 @@ import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { AuthContext } from "../context/AuthContext";
-
-interface Board {
-  id: number;
-  title: string;
-  owner_id: number;
-}
+import BoardCard from "../components/BoardCard";
+import BoardSettingsMenu from "../components/BoardSettingsMenu";
+import { type Board } from "../types";
 
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
@@ -17,6 +14,7 @@ const Dashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState<"owned" | "shared">("owned");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [settingsMenu, setSettingsMenu] = useState({ open: false, board: null as Board | null });
 
     useEffect(() => {
         fetchBoards();
@@ -98,18 +96,18 @@ const Dashboard: React.FC = () => {
       {displayedBoards.length === 0 ? (
         <p>No boards here yet.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {displayedBoards.map((board) => (
-            <div
-              key={board.id}
-              onClick={() => navigate(`/board/${board.id}`)}
-              className="p-4 border rounded shadow hover:shadow-md cursor-pointer flex justify-between items-center"
-            >
-              <span>{board.title}</span>
-              <span className="text-gray-500">⚙️</span>
-            </div>
+            <BoardCard key={board.id} board={board} setSettingsMenu={setSettingsMenu} />
           ))}
         </div>
+      )}
+      { settingsMenu.open && settingsMenu.board && (
+        <BoardSettingsMenu 
+          board={settingsMenu.board} 
+          closeMenu={() => setSettingsMenu({ open: false, board: null })} 
+          refreshBoards={fetchBoards}
+        />
       )}
     </div>
   );

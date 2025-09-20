@@ -69,6 +69,11 @@ func GetSharesByBoard(db *sql.DB, boardID int64) ([]BoardShare, error) {
 		}
 		shares = append(shares, s)
 	}
+
+	if shares == nil {
+		shares = []BoardShare{}
+	}
+
 	return shares, nil
 }
 

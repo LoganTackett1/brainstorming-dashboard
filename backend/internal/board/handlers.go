@@ -3,6 +3,7 @@ package board
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/LoganTackett1/brainstorming-backend/internal/middleware"
@@ -24,6 +25,7 @@ func (h *BoardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		boards, err := GetBoards(h.DB, userID)
 		if err != nil {
+			log.Printf("DB query error: %v", err)
 			middleware.JSONError(w, "Failed to fetch boards", http.StatusInternalServerError)
 			return
 		}

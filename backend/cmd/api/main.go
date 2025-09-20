@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
+	"github.com/LoganTackett1/brainstorming-backend/internal/awsclient"
 	"github.com/LoganTackett1/brainstorming-backend/internal/board"
 	"github.com/LoganTackett1/brainstorming-backend/internal/boardaccess"
 	"github.com/LoganTackett1/brainstorming-backend/internal/boarddetail"
@@ -31,13 +33,20 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// --- AWS S3 ---
+	s3Client := awsclient.NewS3Client()
+	bucket := os.Getenv("S3_BUCKET")
+	thumbnailHandler := &board.ThumbnailHandler{DB: database, S3Client: s3Client, Bucket: bucket}
+
 	// --- User Routes ---
 	signupHandler := &user.SignupHandler{DB: database}
 	loginHandler := &user.LoginHandler{DB: database}
 	meHandler := &user.MeHandler{DB: database}
+	emailHandler := &user.EmailHandler{DB: database}
 	http.Handle("/signup", signupHandler)
 	http.Handle("/login", loginHandler)
 	http.Handle("/me", user.AuthMiddleware(meHandler))
+	http.Handle("/emailToID", user.AuthMiddleware(emailHandler))
 
 	// --- Board Routes ---
 	boardHandler := &board.BoardHandler{DB: database}
@@ -63,6 +72,10 @@ func main() {
 			shareHandler.ServeHTTP(w, r)
 			return
 
+		case strings.HasSuffix(path, "/thumbnail"):
+			thumbnailHandler.ServeHTTP(w, r)
+			return
+
 		default:
 			// fallback /boards/{id}
 			detailHandler := &boarddetail.BoardDetailHandler{DB: database}
@@ -71,6 +84,7 @@ func main() {
 		}
 	})))
 
+	// --- Share routes ---
 	http.Handle("/share/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 
@@ -90,7 +104,7 @@ func main() {
 }
 
 // test users (tokens expire 9/16/2025):
-//test@example.com mypassword eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTgxNzMyMjMsInN1YiI6MX0.OsZcexnuZtciNoIOTl5RylYKOe8VzKys3iQT7f7ahns
-//test2@email.com password123 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTgxNzU0MTgsInN1YiI6Mn0.RNYlbbUdaDVAbNB5wxUjuoLi2p0jXFPmttH4sybgbZs
-//test3@example.com mypassword3 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTg0MDQ3MzksInN1YiI6M30.wImBNPh19_wAp6XThXMRqBPLpWhZzW4HDDBdJFNWnrE
+// test@example.com mypassword eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTgxNzMyMjMsInN1YiI6MX0.OsZcexnuZtciNoIOTl5RylYKOe8VzKys3iQT7f7ahns
+// test2@email.com password123 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTgxNzU0MTgsInN1YiI6Mn0.RNYlbbUdaDVAbNB5wxUjuoLi2p0jXFPmttH4sybgbZs
+// test3@example.com mypassword3 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTg0MDQ3MzksInN1YiI6M30.wImBNPh19_wAp6XThXMRqBPLpWhZzW4HDDBdJFNWnrE
 // test5@example.com mypassword5

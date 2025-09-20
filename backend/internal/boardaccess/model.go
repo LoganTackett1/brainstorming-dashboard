@@ -15,7 +15,7 @@ func GrantAccess(db *sql.DB, boardID, userID int64, permission string) (int64, e
 	res, err := db.Exec(
 		`INSERT INTO board_access (board_id, user_id, permission)
          VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE permission = VALUES(permission)`,
+         ON DUPLICATE KEY UPDATE permission = ?`,
 		boardID, userID, permission, permission,
 	)
 	if err != nil {
@@ -52,6 +52,11 @@ func GetBoardAccessList(db *sql.DB, boardID int64) ([]BoardAccess, error) {
 		}
 		accessList = append(accessList, ba)
 	}
+
+	if accessList == nil {
+		accessList = []BoardAccess{}
+	}
+
 	return accessList, nil
 }
 

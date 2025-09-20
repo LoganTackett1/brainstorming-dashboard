@@ -13,7 +13,6 @@ import Share from "./pages/Share";
 import { AuthProvider, AuthContext } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-// [1] Layout component with Logout button
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useContext(AuthContext);
 

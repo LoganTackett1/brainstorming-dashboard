@@ -3,6 +3,7 @@ package boardaccess
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -77,6 +78,7 @@ func (h *BoardAccessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		_, err := GrantAccess(h.DB, boardID, body.UserID, body.Permission)
 		if err != nil {
+			log.Printf("DB error: %v", err)
 			middleware.JSONError(w, "Failed to grant access", http.StatusInternalServerError)
 			return
 		}

@@ -20,6 +20,10 @@ type MeHandler struct {
 	DB *sql.DB
 }
 
+type EmailHandler struct {
+	DB *sql.DB
+}
+
 func (h *LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		middleware.JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -91,4 +95,28 @@ func (h *SignupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	// return token like login does
 	json.NewEncoder(w).Encode(map[string]string{"token": token})
+}
+
+func (h *EmailHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		middleware.JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		middleware.JSONError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	id, err := GetUserIDByEmail(h.DB, body.Email)
+	if err != nil {
+		middleware.JSONError(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int64{"id": id})
 }
