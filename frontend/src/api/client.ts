@@ -67,6 +67,8 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ id, title }),
     }),
+  getBoardDetail: (id: number) =>
+    request(`/boards/${id}`), // ✅ new method
 
   // Thumbnails
   uploadBoardThumbnail: (boardId: number, file: File) => {
@@ -85,11 +87,11 @@ export const api = {
     }),
 
   // Lookup user_id by email
-getUserIdByEmail: async (email: string) =>
-  request("/emailToID", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-  }),
+  getUserIdByEmail: async (email: string) =>
+    request("/emailToID", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
 
   // User access
   getBoardAccess: (boardId: number) =>
@@ -121,5 +123,26 @@ getUserIdByEmail: async (email: string) =>
     request(`/boards/${boardId}/share`, {
       method: "DELETE",
       body: JSON.stringify({ share_id: shareId }),
+    }),
+
+    // Cards
+  getCards: (boardId: number) =>
+    request(`/boards/${boardId}/cards`),
+
+  createCard: (boardId: number, card: { text: string; position_x: number; position_y: number }) =>
+    request(`/boards/${boardId}/cards`, {
+      method: "POST",
+      body: JSON.stringify(card),
+    }),
+
+  updateCard: (id: number, card: { text?: string; position_x?: number; position_y?: number }) =>
+    request(`/cards/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(card),
+    }),
+
+  deleteCard: (id: number) =>
+    request(`/cards/${id}`, {
+      method: "DELETE",
     }),
 };

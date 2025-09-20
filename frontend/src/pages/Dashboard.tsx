@@ -46,6 +46,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="p-6">
+      <div className="bg-red-500 text-white p-4">Tailwind is working!</div>
       <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
 
       {/* Tabs */}
