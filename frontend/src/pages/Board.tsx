@@ -10,6 +10,7 @@ import Draggable, {
 } from "react-draggable";
 import {type Board, type Card} from "../types";
 import DraggableCard from "../components/DraggableCard";
+import { useStaleCheck } from "../hooks/useStaleCheck";
 
 const BoardPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +32,18 @@ const BoardPage: React.FC = () => {
     open: false,
     board: null as Board | null,
   });
+
+  const { stale, setStale } = useStaleCheck(
+    () => api.getCards(Number(id)), // fetchFn
+    cards,                          // local cards state
+    [id]                            // deps
+  );
+
+  const handleRefresh = async () => {
+    await fetchBoard();
+    await fetchCards();
+    setStale(false);
+  };
 
   useEffect(() => {
     if (id) {
@@ -113,45 +126,54 @@ const BoardPage: React.FC = () => {
         />
       )}
 
-    {contextMenu.type && (
-      <div
-        className="absolute bg-white border shadow rounded z-50"
-        style={{ top: contextMenu.y-60, left: contextMenu.x+20 }}
-        onClick={() => setContextMenu({ x: 0, y: 0, type: null })}
-      >
-        {contextMenu.type === "board" && (
-          <button
-            className="block px-4 py-2 hover:bg-gray-100 w-full text-left"
-            onClick={async () => {
-              const newCard = await api.createCard(board.id, {
-                text: "New card",
-                position_x: contextMenu.x,
-                position_y: contextMenu.y,
-              });
-              //setCards((prev) => [...prev, newCard]);
-              setContextMenu({ x: 0, y: 0, type: null });
-              await fetchCards();
-            }}
-          >
-            + Create Card
-          </button>
-        )}
-        {contextMenu.type === "card" && (
-          <button
-            className="block px-4 py-2 hover:bg-gray-100 w-full text-left text-red-600"
-            onClick={async () => {
-              if (contextMenu.cardId) {
-                await api.deleteCard(contextMenu.cardId);
-                setCards((prev) => prev.filter((c) => c.id !== contextMenu.cardId));
-              }
-              setContextMenu({ x: 0, y: 0, type: null });
-            }}
-          >
-            🗑 Delete Card
-          </button>
-        )}
-  </div>
-)}
+      {contextMenu.type && (
+        <div
+          className="absolute bg-white border shadow rounded z-50"
+          style={{ top: contextMenu.y-60, left: contextMenu.x+20 }}
+          onClick={() => setContextMenu({ x: 0, y: 0, type: null })}
+        >
+          {contextMenu.type === "board" && (
+            <button
+              className="block px-4 py-2 hover:bg-gray-100 w-full text-left"
+              onClick={async () => {
+                const newCard = await api.createCard(board.id, {
+                  text: "New card",
+                  position_x: contextMenu.x,
+                  position_y: contextMenu.y,
+                });
+                //setCards((prev) => [...prev, newCard]);
+                setContextMenu({ x: 0, y: 0, type: null });
+                await fetchCards();
+              }}
+            >
+              + Create Card
+            </button>
+          )}
+          {contextMenu.type === "card" && (
+              <button
+                className="block px-4 py-2 hover:bg-gray-100 w-full text-left text-red-600"
+                onClick={async () => {
+                  if (contextMenu.cardId) {
+                    await api.deleteCard(contextMenu.cardId);
+                    setCards((prev) => prev.filter((c) => c.id !== contextMenu.cardId));
+                  }
+                  setContextMenu({ x: 0, y: 0, type: null });
+                }}
+              >
+                🗑 Delete Card
+              </button>
+            )}
+      </div>
+    )}
+
+    {stale && (
+        <button
+          onClick={handleRefresh}
+          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg hover:bg-blue-700"
+        >
+          🔄 Refresh Board
+        </button>
+      )}
     </div>
   );
 };

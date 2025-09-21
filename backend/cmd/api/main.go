@@ -56,6 +56,10 @@ func main() {
 	cardOnlyHandler := &card.CardOnlyHandler{DB: database}
 	http.Handle("/cards/", user.AuthMiddleware(cardOnlyHandler)) // exact match only
 
+	// --- Permission Route for Share Links ---
+	permissionHandler := &share.PermissionHandler{DB: database}
+	http.Handle("/permission/", permissionHandler) // exact match only
+
 	// --- /boards/ dispatch to sub-handlers ---
 	http.Handle("/boards/", user.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path

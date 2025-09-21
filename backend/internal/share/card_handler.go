@@ -114,7 +114,7 @@ func (h *ShareCardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if affected == 0 {
-				middleware.JSONError(w, "Card not found", http.StatusNotFound)
+				json.NewEncoder(w).Encode(map[string]string{"status": "no card found"})
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
@@ -126,7 +126,7 @@ func (h *ShareCardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if affected == 0 {
-				middleware.JSONError(w, "Card not found", http.StatusNotFound)
+				json.NewEncoder(w).Encode(map[string]string{"status": "no card found"})
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})

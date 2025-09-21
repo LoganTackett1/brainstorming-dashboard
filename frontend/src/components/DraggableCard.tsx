@@ -1,25 +1,33 @@
 import React, { useRef, useState } from "react";
 import Draggable, {
   type DraggableData,
-  type DraggableEvent,
   type DraggableEventHandler,
 } from "react-draggable";
 import { api } from "../api/client";
 import { type Card } from "../types";
 
+interface SharedMode {
+  token: string;
+  permission: "read" | "edit" | null;
+}
+
 interface Props {
   card: Card;
   setCards: React.Dispatch<React.SetStateAction<Card[]>>;
   onRightClick: (x: number, y: number) => void;
+  sharedMode?: SharedMode; // 👈 new prop
 }
 
-const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick }) => {
+const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMode }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
 
-  // Track whether this card has unsaved edits
   const [dirty, setDirty] = useState(false);
 
+  const canEdit = !sharedMode || sharedMode.permission === "edit";
+
   const handleStop: DraggableEventHandler = (_e, data: DraggableData) => {
+    if (!canEdit) return; // skip drag updates for read-only
+
     // Update local state immediately
     setCards((prev) =>
       prev.map((c) =>
@@ -30,19 +38,33 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick }) => {
     );
 
     // Persist position change to backend
-    api.updateCard(card.id, {
-      ...card,
-      position_x: data.x,
-      position_y: data.y,
-    }).catch((err) => {
+    const update = sharedMode
+      ? api.updateSharedCard(sharedMode.token, card.id, {
+          ...card,
+          position_x: data.x,
+          position_y: data.y,
+        })
+      : api.updateCard(card.id, {
+          ...card,
+          position_x: data.x,
+          position_y: data.y,
+        });
+
+    update.catch((err: any) => {
       alert("Failed to save card position: " + err.message);
     });
   };
 
   const saveChanges = async () => {
+    if (!canEdit) return;
+
     try {
-      await api.updateCard(card.id, { ...card });
-      setDirty(false); // ✅ reset
+      if (sharedMode) {
+        await api.updateSharedCard(sharedMode.token, card.id, { ...card });
+      } else {
+        await api.updateCard(card.id, { ...card });
+      }
+      setDirty(false);
     } catch (err: any) {
       alert("Failed to save card: " + err.message);
     }
@@ -53,6 +75,7 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick }) => {
       nodeRef={nodeRef}
       position={{ x: card.position_x, y: card.position_y }}
       onStop={handleStop}
+      disabled={!canEdit} // disable dragging if read-only
     >
       <div
         ref={nodeRef}
@@ -60,24 +83,28 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick }) => {
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          onRightClick(e.clientX, e.clientY);
+          if (canEdit) {
+            onRightClick(e.clientX, e.clientY);
+          }
         }}
       >
         <textarea
           value={card.text}
+          readOnly={!canEdit} // disable typing if read-only
           className="w-full min-h-[60px] resize-none border-none focus:ring-0 outline-none"
           onChange={(e) => {
+            if (!canEdit) return;
             setCards((prev) =>
               prev.map((c) =>
                 c.id === card.id ? { ...c, text: e.target.value } : c
               )
             );
-            setDirty(true); // mark as unsaved
+            setDirty(true);
           }}
         />
 
-        {/* Save button (only visible when dirty) */}
-        {dirty && (
+        {/* Save button (only visible when dirty + editable) */}
+        {dirty && canEdit && (
           <button
             onClick={saveChanges}
             className="absolute bottom-1 right-1 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow hover:bg-blue-700"

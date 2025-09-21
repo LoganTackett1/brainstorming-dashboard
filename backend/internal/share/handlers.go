@@ -16,6 +16,10 @@ type ShareHandler struct {
 	DB *sql.DB
 }
 
+type PermissionHandler struct {
+	DB *sql.DB
+}
+
 // Routes:
 // - GET    /boards/{id}/share     (list all share links for board)
 // - POST   /boards/{id}/share     (create new share link)
@@ -103,4 +107,25 @@ func (h *ShareHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		middleware.JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// Routes: /permission/{token}
+func (h *PermissionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		middleware.JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 3 {
+		middleware.JSONError(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	token := parts[2]
+
+	_, perm, err := board.GetSharePermission(h.DB, token)
+	if err != nil {
+		middleware.JSONError(w, "Failed to check share link", http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"permission": perm})
 }

@@ -145,4 +145,26 @@ export const api = {
     request(`/cards/${id}`, {
       method: "DELETE",
     }),
+
+  // Shared board
+  getSharedBoard: (token: string) => request(`/share/${token}`),
+
+  // Shared cards
+  getSharedCards: (token: string) => request(`/share/${token}/cards`),
+  createSharedCard: (token: string, card: any) =>
+    request(`/share/${token}/cards`, {
+      method: "POST",
+      body: JSON.stringify(card),
+    }),
+  updateSharedCard: (token: string, id: number, card: any) =>
+    request(`/share/${token}/cards/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(card),
+    }),
+  deleteSharedCard: (token: string, id: number) =>
+    request(`/share/${token}/cards/${id}`, { method: "DELETE" }),
+
+  // Shared permission
+  getSharePermission: (token: string) => request(`/permission/${token}`),
+
 };
