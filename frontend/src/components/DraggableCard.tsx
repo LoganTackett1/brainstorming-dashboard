@@ -20,15 +20,15 @@ interface Props {
 
 const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMode }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
 
   const [dirty, setDirty] = useState(false);
 
   const canEdit = !sharedMode || sharedMode.permission === "edit";
 
   const handleStop: DraggableEventHandler = (_e, data: DraggableData) => {
-    if (!canEdit) return; // skip drag updates for read-only
+    if (!canEdit) return;
 
-    // Update local state immediately
     setCards((prev) =>
       prev.map((c) =>
         c.id === card.id
@@ -37,7 +37,6 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
       )
     );
 
-    // Persist position change to backend
     const update = sharedMode
       ? api.updateSharedCard(sharedMode.token, card.id, {
           ...card,
@@ -57,7 +56,6 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
 
   const saveChanges = async () => {
     if (!canEdit) return;
-
     try {
       if (sharedMode) {
         await api.updateSharedCard(sharedMode.token, card.id, { ...card });
@@ -70,16 +68,26 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
     }
   };
 
+  const autoResize = () => {
+    if (textRef.current) {
+      textRef.current.style.height = "auto"; // reset to shrink if needed
+      textRef.current.style.height = `${textRef.current.scrollHeight}px`;
+    }
+  };
+
   return (
     <Draggable
       nodeRef={nodeRef}
       position={{ x: card.position_x, y: card.position_y }}
       onStop={handleStop}
-      disabled={!canEdit} // disable dragging if read-only
+      disabled={!canEdit}
+      cancel="textarea"
     >
       <div
         ref={nodeRef}
-        className="absolute bg-white p-3 rounded-lg shadow-lg w-56 cursor-move border border-gray-200"
+        className="absolute bg-white p-3 rounded-lg shadow-lg 
+                   w-72 min-h-[100px] max-h-[300px] 
+                   overflow-y-auto cursor-move border border-gray-200"
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -89,9 +97,10 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
         }}
       >
         <textarea
+          ref={textRef}
           value={card.text}
-          readOnly={!canEdit} // disable typing if read-only
-          className="w-full min-h-[60px] resize-none border-none focus:ring-0 outline-none"
+          readOnly={!canEdit}
+          className="w-full resize-none border-none focus:ring-0 outline-none"
           onChange={(e) => {
             if (!canEdit) return;
             setCards((prev) =>
@@ -100,10 +109,12 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
               )
             );
             setDirty(true);
+            autoResize();
           }}
+          onInput={autoResize}
+          style={{ minHeight: "60px", maxHeight: "240px" }} // inside card max
         />
 
-        {/* Save button (only visible when dirty + editable) */}
         {dirty && canEdit && (
           <button
             onClick={saveChanges}
