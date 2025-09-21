@@ -52,6 +52,10 @@ func main() {
 	boardHandler := &board.BoardHandler{DB: database}
 	http.Handle("/boards", user.AuthMiddleware(boardHandler)) // exact match only
 
+	// --- Card Routes ---
+	cardOnlyHandler := &card.CardOnlyHandler{DB: database}
+	http.Handle("/cards/", user.AuthMiddleware(cardOnlyHandler)) // exact match only
+
 	// --- /boards/ dispatch to sub-handlers ---
 	http.Handle("/boards/", user.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path

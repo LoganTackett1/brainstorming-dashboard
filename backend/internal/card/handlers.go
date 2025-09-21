@@ -16,6 +16,10 @@ type CardHandler struct {
 	DB *sql.DB
 }
 
+type CardOnlyHandler struct {
+	DB *sql.DB
+}
+
 // Routes handled:
 // - POST   /boards/{id}/cards
 // - GET    /boards/{id}/cards
@@ -96,6 +100,19 @@ func (h *CardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// --- No matching route ---
+	middleware.JSONError(w, "Not found", http.StatusNotFound)
+}
+
+func (h *CardOnlyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	userID := user.GetUserID(r)
+	if userID == 0 {
+		middleware.JSONError(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	path := r.URL.Path
+
 	// --- Card-specific routes: /cards/{id} ---
 	if strings.HasPrefix(path, "/cards/") {
 		parts := strings.Split(path, "/")
@@ -144,7 +161,7 @@ func (h *CardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if affected == 0 {
-				middleware.JSONError(w, "Card not found", http.StatusNotFound)
+				json.NewEncoder(w).Encode(map[string]string{"status": "no rows affected"})
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]string{"status": "updated"})

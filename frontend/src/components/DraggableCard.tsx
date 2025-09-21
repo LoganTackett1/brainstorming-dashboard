@@ -10,9 +10,10 @@ import { type Card } from "../types";
 interface Props {
   card: Card;
   setCards: React.Dispatch<React.SetStateAction<Card[]>>;
+  onRightClick: (x: number, y: number) => void;
 }
 
-const DraggableCard: React.FC<Props> = ({ card, setCards }) => {
+const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
 
   // Track whether this card has unsaved edits
@@ -56,6 +57,11 @@ const DraggableCard: React.FC<Props> = ({ card, setCards }) => {
       <div
         ref={nodeRef}
         className="absolute bg-white p-3 rounded-lg shadow-lg w-56 cursor-move border border-gray-200"
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onRightClick(e.clientX, e.clientY);
+        }}
       >
         <textarea
           value={card.text}

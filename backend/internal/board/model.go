@@ -54,6 +54,11 @@ func GetBoards(db *sql.DB, userID int64) ([]Board, error) {
 		b.IsOwner = (b.Permission == "owner")
 		boards = append(boards, b)
 	}
+
+	if boards == nil {
+		boards = []Board{}
+	}
+
 	return boards, nil
 }
 

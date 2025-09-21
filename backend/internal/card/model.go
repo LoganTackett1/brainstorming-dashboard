@@ -53,6 +53,11 @@ func GetCardsByBoard(db *sql.DB, boardID int64) ([]Card, error) {
 		}
 		cards = append(cards, c)
 	}
+
+	if cards == nil {
+		cards = []Card{}
+	}
+
 	return cards, nil
 }
 
