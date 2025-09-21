@@ -14,7 +14,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
     const res = await api.login(email, password);
-    login(res.token);
+    await login(res.token);
     navigate("/dashboard");
     } catch (err: any) {
     setError(err.message);

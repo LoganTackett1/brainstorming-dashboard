@@ -39,15 +39,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const login = (token: string) => {
+  const login = async (token: string) => {
     setToken(token);
-    api.me()
-      .then((data) => setUser(data))
-      .catch(() => {
-        clearToken();
-        setUser(null);
-      });
+    try {
+      const data = await api.me();
+      setUser(data);
+    } catch {
+      clearToken();
+      setUser(null);
+      throw new Error("Failed to fetch user");
+    }
   };
+
 
   const logout = () => {
     clearToken();

@@ -6,6 +6,7 @@ type BoardAccess struct {
 	ID         int64  `json:"id"`
 	BoardID    int64  `json:"board_id"`
 	UserID     int64  `json:"user_id"`
+	Email      string `json:"email"`
 	Permission string `json:"permission"` // "edit" or "read"
 	CreatedAt  string `json:"created_at"`
 }
@@ -36,7 +37,10 @@ func RevokeAccess(db *sql.DB, boardID, userID int64) (int64, error) {
 // Get all access entries for a board
 func GetBoardAccessList(db *sql.DB, boardID int64) ([]BoardAccess, error) {
 	rows, err := db.Query(
-		`SELECT id, board_id, user_id, permission, created_at FROM board_access WHERE board_id = ?`,
+		`SELECT ba.id, ba.board_id, ba.user_id, u.email, ba.permission, ba.created_at
+		FROM board_access ba
+		JOIN users u ON ba.user_id = u.id
+		WHERE ba.board_id = ?;`,
 		boardID,
 	)
 	if err != nil {
@@ -47,7 +51,7 @@ func GetBoardAccessList(db *sql.DB, boardID int64) ([]BoardAccess, error) {
 	var accessList []BoardAccess
 	for rows.Next() {
 		var ba BoardAccess
-		if err := rows.Scan(&ba.ID, &ba.BoardID, &ba.UserID, &ba.Permission, &ba.CreatedAt); err != nil {
+		if err := rows.Scan(&ba.ID, &ba.BoardID, &ba.UserID, &ba.Email, &ba.Permission, &ba.CreatedAt); err != nil {
 			return nil, err
 		}
 		accessList = append(accessList, ba)
