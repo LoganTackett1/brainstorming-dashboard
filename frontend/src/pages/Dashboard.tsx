@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { AuthContext } from "../context/AuthContext";
@@ -6,80 +6,125 @@ import BoardCard from "../components/BoardCard";
 import BoardSettingsMenu from "../components/BoardSettingsMenu";
 import { type Board } from "../types";
 
+type TabKey = "owned" | "shared";
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
   const [boards, setBoards] = useState<Board[]>([]);
-  const [activeTab, setActiveTab] = useState<"owned" | "shared">("owned");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [settingsMenu, setSettingsMenu] = useState({ open: false, board: null as Board | null });
+  const [activeTab, setActiveTab] = useState<TabKey>("owned");
+
+  const [settingsMenu, setSettingsMenu] = useState<{
+    open: boolean;
+    board: Board | null;
+  }>({ open: false, board: null });
+
+  const fetchBoards = async () => {
+    try {
+      setLoading(true);
+      const data = await api.getBoards();
+      setBoards(data || []);
+      setError(null);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load boards");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchBoards();
   }, []);
 
-  async function fetchBoards() {
-    try {
-      const data = await api.getBoards();
-      setBoards(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (loading) {
-    return <div className="p-6">Loading boards...</div>;
-  }
-
-  if (error) {
-    return <div className="p-6 text-red-600">Error: {error}</div>;
-  }
-
-  const ownedBoards = boards.filter((b) => b.owner_id === user?.user_id);
-  const sharedBoards = boards.filter((b) => b.owner_id !== user?.user_id);
+  const ownedBoards = useMemo(
+    () => boards.filter((b) => b.owner_id === user?.user_id),
+    [boards, user]
+  );
+  const sharedBoards = useMemo(
+    () => boards.filter((b) => b.owner_id !== user?.user_id),
+    [boards, user]
+  );
 
   const displayedBoards = activeTab === "owned" ? ownedBoards : sharedBoards;
 
+  const onNewBoard = async () => {
+    const defaultTitle: string = "Untitled board";
+    const title = window.prompt("Board title:", defaultTitle);
+    if (title === null) return; // user cancelled
+    try {
+      const usedTitle = title != "" ? title.trim() : defaultTitle;
+      await api.createBoard(usedTitle);
+      fetchBoards();
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message ?? "Failed to create board");
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Title + tabs */}
+      {/* Header row: title, tabs, create button */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
-        <div
-          className="inline-flex overflow-hidden rounded-xl border"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <button
-            onClick={() => setActiveTab("owned")}
-            className={`px-4 py-2 text-sm ${activeTab === "owned" ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]"}`}
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
+          <div
+            className="inline-flex rounded-xl border overflow-hidden"
+            style={{ borderColor: "var(--border)" }}
           >
-            Owned
-          </button>
-          <button
-            onClick={() => setActiveTab("shared")}
-            className={`px-4 py-2 text-sm ${activeTab === "shared" ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]"}`}
-          >
-            Shared with me
+            <button
+              onClick={() => setActiveTab("owned")}
+              className={`px-4 py-2 text-sm ${
+                activeTab === "owned" ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]"
+              }`}
+            >
+              Owned
+            </button>
+            <button
+              onClick={() => setActiveTab("shared")}
+              className={`px-4 py-2 text-sm ${
+                activeTab === "shared" ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]"
+              }`}
+            >
+              Shared with me
+            </button>
+          </div>
+        </div>
+
+        {/* New Board button */}
+        <div className="flex items-center gap-2">
+          <button onClick={onNewBoard} className="btn btn-primary">
+            + New Board
           </button>
         </div>
       </div>
 
+      {/* Data states */}
       {loading && <div>Loading…</div>}
       {error && <div className="text-red-600">Error: {error}</div>}
 
+      {/* Boards grid */}
       {!loading && !error && (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {displayedBoards.map((b) => (
-            <BoardCard key={b.id} board={b} setSettingsMenu={setSettingsMenu} />
-          ))}
-        </div>
+        <>
+          {displayedBoards.length === 0 ? (
+            <div className="text-[var(--fg-muted)]">
+              {activeTab === "owned"
+                ? "You don’t own any boards yet. Create one to get started."
+                : "No boards have been shared with you yet."}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {displayedBoards.map((b) => (
+                <BoardCard key={b.id} board={b} setSettingsMenu={setSettingsMenu} />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      {/* Settings Menu */}
+      {/* Settings Modal (unchanged behavior) */}
       {settingsMenu.open && settingsMenu.board && (
         <BoardSettingsMenu
           board={settingsMenu.board}
