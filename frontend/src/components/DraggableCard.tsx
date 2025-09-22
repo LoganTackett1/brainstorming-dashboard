@@ -1,8 +1,5 @@
 import React, { useRef, useState } from "react";
-import Draggable, {
-  type DraggableData,
-  type DraggableEventHandler,
-} from "react-draggable";
+import Draggable, { type DraggableData, type DraggableEventHandler } from "react-draggable";
 import { api } from "../api/client";
 import { type Card } from "../types";
 
@@ -30,11 +27,7 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
     if (!canEdit) return;
 
     setCards((prev) =>
-      prev.map((c) =>
-        c.id === card.id
-          ? { ...c, position_x: data.x, position_y: data.y }
-          : c
-      )
+      prev.map((c) => (c.id === card.id ? { ...c, position_x: data.x, position_y: data.y } : c)),
     );
 
     const update = sharedMode
@@ -85,9 +78,7 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
     >
       <div
         ref={nodeRef}
-        className="absolute bg-white p-3 rounded-lg shadow-lg 
-                   w-72 min-h-[100px] max-h-[300px] 
-                   overflow-y-auto cursor-move border border-gray-200"
+        className="absolute max-h-[300px] min-h-[100px] w-72 cursor-move overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 shadow-lg"
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -100,13 +91,11 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
           ref={textRef}
           value={card.text}
           readOnly={!canEdit}
-          className="w-full resize-none border-none focus:ring-0 outline-none"
+          className="w-full resize-none border-none outline-none focus:ring-0"
           onChange={(e) => {
             if (!canEdit) return;
             setCards((prev) =>
-              prev.map((c) =>
-                c.id === card.id ? { ...c, text: e.target.value } : c
-              )
+              prev.map((c) => (c.id === card.id ? { ...c, text: e.target.value } : c)),
             );
             setDirty(true);
             autoResize();
@@ -118,7 +107,7 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
         {dirty && canEdit && (
           <button
             onClick={saveChanges}
-            className="absolute bottom-1 right-1 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow hover:bg-blue-700"
+            className="absolute right-1 bottom-1 rounded bg-blue-600 px-2 py-1 text-xs text-white shadow hover:bg-blue-700"
           >
             Save
           </button>

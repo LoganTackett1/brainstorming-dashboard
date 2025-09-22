@@ -32,15 +32,15 @@ const SharePage: React.FC = () => {
 
   const { stale, setStale } = useStaleCheck(
     () => api.getSharedCards(token!), // fetchFn
-    cards,                            // local cards state
-    [token]                           // deps
-    );
+    cards, // local cards state
+    [token], // deps
+  );
 
-    const handleRefresh = async () => {
+  const handleRefresh = async () => {
     await fetchBoard();
     await fetchCards();
     setStale(false);
-    };
+  };
 
   useEffect(() => {
     if (token) {
@@ -97,7 +97,7 @@ const SharePage: React.FC = () => {
 
   return (
     <div
-      className="relative w-full h-screen bg-gray-100 overflow-hidden"
+      className="relative h-screen w-full overflow-hidden bg-gray-100"
       onContextMenu={(e) => {
         e.preventDefault();
         if (canEdit) {
@@ -110,7 +110,21 @@ const SharePage: React.FC = () => {
       }}
     >
       {/* Board title */}
-      <h2 className="text-2xl font-bold p-4">{board.title}</h2>
+      <div className="flex items-center gap-3 p-4">
+        <h2 className="text-2xl font-bold tracking-tight">{board.title}</h2>
+        {permission && (
+          <span
+            className="rounded-full border px-2 py-1 text-xs capitalize"
+            style={{
+              borderColor: "var(--border)",
+              background: "var(--muted)",
+              color: "var(--fg-muted)",
+            }}
+          >
+            {permission}
+          </span>
+        )}
+      </div>
 
       {/* Settings cog (only for edit links) */}
       {canEdit && (
@@ -149,13 +163,13 @@ const SharePage: React.FC = () => {
       {/* Context Menu */}
       {contextMenu.type && (
         <div
-          className="absolute bg-white border shadow rounded z-50"
+          className="absolute z-50 rounded border bg-white shadow"
           style={{ top: contextMenu.y - 60, left: contextMenu.x + 20 }}
           onClick={() => setContextMenu({ x: 0, y: 0, type: null })}
         >
           {contextMenu.type === "board" && (
             <button
-              className="block px-4 py-2 hover:bg-gray-100 w-full text-left"
+              className="block w-full px-4 py-2 text-left hover:bg-gray-100"
               onClick={async () => {
                 const newCard = await api.createSharedCard(token!, {
                   text: "New card",
@@ -171,7 +185,7 @@ const SharePage: React.FC = () => {
           )}
           {contextMenu.type === "card" && (
             <button
-              className="block px-4 py-2 hover:bg-gray-100 w-full text-left text-red-600"
+              className="block w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100"
               onClick={async () => {
                 if (contextMenu.cardId) {
                   await api.deleteSharedCard(token!, contextMenu.cardId);
@@ -188,12 +202,12 @@ const SharePage: React.FC = () => {
 
       {stale && (
         <button
-            onClick={handleRefresh}
-            className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg hover:bg-blue-700"
+          onClick={handleRefresh}
+          className="fixed right-4 bottom-4 rounded bg-blue-600 px-4 py-2 text-white shadow-lg hover:bg-blue-700"
         >
-            🔄 Refresh Board
+          🔄 Refresh Board
         </button>
-        )}
+      )}
     </div>
   );
 };

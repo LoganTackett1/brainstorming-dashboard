@@ -1,7 +1,6 @@
-import React, { useState, useContext } from "react";
+import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import BoardSettingsMenu from "./BoardSettingsMenu";
 import { type Board } from "../types";
 
 interface BoardCardProps {
@@ -12,45 +11,50 @@ interface BoardCardProps {
 const BoardCard: React.FC<BoardCardProps> = ({ board, setSettingsMenu }) => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
-
   const isOwner = board.owner_id === user?.user_id;
 
-  return (
-    <div className="w-full h-full p-4 border">
-      {/* Thumbnail */}
-      {board.thumbnail_url ? (
-        <img
-          src={`${board.thumbnail_url}?t=${new Date().getTime()}`} 
-          alt={board.title}
-          className="w-5/6 h-auto mb-2"
-          onClick={() => navigate(`/board/${board.id}`)}
-        />
-      ) : (
-        <div
-          className="w-full h-32 bg-gray-200 flex items-center justify-center text-gray-500 rounded mb-2 cursor-pointer"
-          onClick={() => navigate(`/board/${board.id}`)}
-        >
-          No Thumbnail
-        </div>
-      )}
+  const go = () => navigate(`/boards/${board.id}`);
 
-      {/* Title */}
-      <div
-        className="flex justify-between items-center cursor-pointer"
-        onClick={() => navigate(`/board/${board.id}`)}
-      >
-        <span>{board.title}</span>
+  return (
+    <div
+      className="group card cursor-pointer overflow-hidden transition hover:shadow-md"
+      onClick={go}
+      role="button"
+    >
+      {/* Top: thumbnail area, no padding, consistent size */}
+      <div className="aspect-[4/3] w-full overflow-hidden bg-[var(--muted)]">
+        {board.thumbnail_url ? (
+          <img
+            src={board.thumbnail_url}
+            alt={board.title}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="grid h-full w-full place-items-center text-4xl opacity-60">🗂️</div>
+        )}
       </div>
 
-      {/* Settings Cog */}
-      {isOwner && (
-        <button
-          onClick={() => setSettingsMenu({ open: true, board })}
-          className="text-gray-500 hover:text-gray-800"
-        >
-          ⚙️
-        </button>
-      )}
+      {/* Bottom: title + settings */}
+      <div className="flex items-center justify-between p-3">
+        <div className="min-w-0">
+          <h3 className="truncate font-medium">{board.title}</h3>
+        </div>
+
+        {isOwner && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSettingsMenu({ open: true, board });
+            }}
+            className="rounded-lg p-2 text-gray-500 hover:bg-[var(--muted)] hover:text-gray-900"
+            aria-label="Board settings"
+            title="Board settings"
+          >
+            ⚙️
+          </button>
+        )}
+      </div>
     </div>
   );
 };

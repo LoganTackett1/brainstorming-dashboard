@@ -38,16 +38,14 @@ function SettingItem<T>({
 
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        {label}
-      </label>
+      <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
 
       {type === "text" && (
         <input
           type="text"
           value={value as string}
           onChange={(e) => setValue(e.target.value as T)}
-          className="w-full p-2 border rounded mb-2"
+          className="mb-2 w-full rounded border p-2"
         />
       )}
 
@@ -63,7 +61,7 @@ function SettingItem<T>({
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="px-4 py-2 bg-red-600 text-white rounded"
+          className="rounded bg-red-600 px-4 py-2 text-white"
         >
           {loading ? "Processing..." : buttonLabel || "Run"}
         </button>
@@ -73,14 +71,14 @@ function SettingItem<T>({
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded"
+          className="rounded bg-blue-600 px-4 py-2 text-white"
         >
           {loading ? "Saving..." : "Save"}
         </button>
       )}
 
-      {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
-      {success && <p className="text-green-600 text-sm mt-1">{success}</p>}
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {success && <p className="mt-1 text-sm text-green-600">{success}</p>}
     </div>
   );
 }

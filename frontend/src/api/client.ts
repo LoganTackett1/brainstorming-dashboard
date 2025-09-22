@@ -40,7 +40,6 @@ async function request(path: string, options: RequestInit = {}) {
   return data;
 }
 
-
 export const api = {
   // Auth
   signup: (email: string, password: string) =>
@@ -57,7 +56,7 @@ export const api = {
 
   // Boards
   getBoards: () => request("/boards"),
-  createBoard: (title: string) => 
+  createBoard: (title: string) =>
     request("/boards", {
       method: "POST",
       body: JSON.stringify({ title }),
@@ -67,8 +66,7 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ id, title }),
     }),
-  getBoardDetail: (id: number) =>
-    request(`/boards/${id}`), // ✅ new method
+  getBoardDetail: (id: number) => request(`/boards/${id}`), // ✅ new method
 
   // Thumbnails
   uploadBoardThumbnail: (boardId: number, file: File) => {
@@ -78,7 +76,7 @@ export const api = {
 
     return request("/boards/thumbnail", {
       method: "POST",
-      body: formData, 
+      body: formData,
     });
   },
   deleteBoardThumbnail: (boardId: number) =>
@@ -94,8 +92,7 @@ export const api = {
     }),
 
   // User access
-  getBoardAccess: (boardId: number) =>
-    request(`/boards/${boardId}/access`),
+  getBoardAccess: (boardId: number) => request(`/boards/${boardId}/access`),
 
   updateBoardAccess: (boardId: number, userId: number, permission: string) =>
     request(`/boards/${boardId}/access`, {
@@ -110,8 +107,7 @@ export const api = {
     }),
 
   // Share links
-  getBoardShares: (boardId: number) =>
-    request(`/boards/${boardId}/share`),
+  getBoardShares: (boardId: number) => request(`/boards/${boardId}/share`),
 
   createBoardShare: (boardId: number, permission: string) =>
     request(`/boards/${boardId}/share`, {
@@ -125,9 +121,8 @@ export const api = {
       body: JSON.stringify({ share_id: shareId }),
     }),
 
-    // Cards
-  getCards: (boardId: number) =>
-    request(`/boards/${boardId}/cards`),
+  // Cards
+  getCards: (boardId: number) => request(`/boards/${boardId}/cards`),
 
   createCard: (boardId: number, card: { text: string; position_x: number; position_y: number }) =>
     request(`/boards/${boardId}/cards`, {
@@ -166,5 +161,4 @@ export const api = {
 
   // Shared permission
   getSharePermission: (token: string) => request(`/permission/${token}`),
-
 };

@@ -8,7 +8,7 @@ import Draggable, {
   type DraggableEvent,
   type DraggableEventHandler,
 } from "react-draggable";
-import {type Board, type Card} from "../types";
+import { type Board, type Card } from "../types";
 import DraggableCard from "../components/DraggableCard";
 import { useStaleCheck } from "../hooks/useStaleCheck";
 
@@ -35,8 +35,8 @@ const BoardPage: React.FC = () => {
 
   const { stale, setStale } = useStaleCheck(
     () => api.getCards(Number(id)), // fetchFn
-    cards,                          // local cards state
-    [id]                            // deps
+    cards, // local cards state
+    [id], // deps
   );
 
   const handleRefresh = async () => {
@@ -61,7 +61,6 @@ const BoardPage: React.FC = () => {
       window.removeEventListener("click", handleClick);
     };
   }, [contextMenu]);
-
 
   async function fetchBoard() {
     try {
@@ -90,16 +89,32 @@ const BoardPage: React.FC = () => {
   const isOwner = board.owner_id === user?.user_id;
 
   return (
-    <div className="relative w-full h-screen bg-gray-100 overflow-hidden" onContextMenu={(e) => {
-      e.preventDefault();
-      setContextMenu({
-        x: e.clientX,
-        y: e.clientY,
-        type: "board", // right-click background
-      });
-    }}>
+    <div
+      className="relative h-screen w-full overflow-hidden bg-gray-100"
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setContextMenu({
+          x: e.clientX,
+          y: e.clientY,
+          type: "board", // right-click background
+        });
+      }}
+    >
       {/* Board title */}
-      <h2 className="text-2xl font-bold p-4">{board.title}</h2>
+      {/* Board title + access */}
+      <div className="flex items-center gap-3 p-4">
+        <h2 className="text-2xl font-bold tracking-tight">{board.title}</h2>
+        <span
+          className="rounded-full border px-2 py-1 text-xs"
+          style={{
+            borderColor: "var(--border)",
+            background: "var(--muted)",
+            color: "var(--fg-muted)",
+          }}
+        >
+          {board.owner_id === user?.user_id ? "Owner" : "Collaborator"}
+        </span>
+      </div>
 
       {/* Settings cog */}
       {isOwner && (
@@ -113,9 +128,15 @@ const BoardPage: React.FC = () => {
 
       {/* Cards */}
       {cards.map((card) => (
-        <DraggableCard key={card.id} card={card} setCards={setCards} onRightClick={(x: number, y: number) => setContextMenu({ x, y, type: "card", cardId: card.id })} />
+        <DraggableCard
+          key={card.id}
+          card={card}
+          setCards={setCards}
+          onRightClick={(x: number, y: number) =>
+            setContextMenu({ x, y, type: "card", cardId: card.id })
+          }
+        />
       ))}
-
 
       {/* Settings Menu */}
       {settingsMenu.open && settingsMenu.board && (
@@ -128,13 +149,13 @@ const BoardPage: React.FC = () => {
 
       {contextMenu.type && (
         <div
-          className="absolute bg-white border shadow rounded z-50"
-          style={{ top: contextMenu.y-60, left: contextMenu.x+20 }}
+          className="absolute z-50 rounded border bg-white shadow"
+          style={{ top: contextMenu.y - 60, left: contextMenu.x + 20 }}
           onClick={() => setContextMenu({ x: 0, y: 0, type: null })}
         >
           {contextMenu.type === "board" && (
             <button
-              className="block px-4 py-2 hover:bg-gray-100 w-full text-left"
+              className="block w-full px-4 py-2 text-left hover:bg-gray-100"
               onClick={async () => {
                 const newCard = await api.createCard(board.id, {
                   text: "New card",
@@ -150,26 +171,26 @@ const BoardPage: React.FC = () => {
             </button>
           )}
           {contextMenu.type === "card" && (
-              <button
-                className="block px-4 py-2 hover:bg-gray-100 w-full text-left text-red-600"
-                onClick={async () => {
-                  if (contextMenu.cardId) {
-                    await api.deleteCard(contextMenu.cardId);
-                    setCards((prev) => prev.filter((c) => c.id !== contextMenu.cardId));
-                  }
-                  setContextMenu({ x: 0, y: 0, type: null });
-                }}
-              >
-                🗑 Delete Card
-              </button>
-            )}
-      </div>
-    )}
+            <button
+              className="block w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100"
+              onClick={async () => {
+                if (contextMenu.cardId) {
+                  await api.deleteCard(contextMenu.cardId);
+                  setCards((prev) => prev.filter((c) => c.id !== contextMenu.cardId));
+                }
+                setContextMenu({ x: 0, y: 0, type: null });
+              }}
+            >
+              🗑 Delete Card
+            </button>
+          )}
+        </div>
+      )}
 
-    {stale && (
+      {stale && (
         <button
           onClick={handleRefresh}
-          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg hover:bg-blue-700"
+          className="fixed right-4 bottom-4 rounded bg-blue-600 px-4 py-2 text-white shadow-lg hover:bg-blue-700"
         >
           🔄 Refresh Board
         </button>

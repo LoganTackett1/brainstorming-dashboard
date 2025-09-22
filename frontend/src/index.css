@@ -1,1 +1,116 @@
+/* Tailwind v4 */
 @import "tailwindcss";
+
+/* --------------------------------------------------
+Theme tokens (Notion‑like, light & dark via .dark)
+-------------------------------------------------- */
+:root {
+  --bg: #f6f5f4; /* page background */
+  --surface: #ffffff; /* cards, modals */
+  --muted: #f1f1ef; /* subtle surfaces */
+  --fg: #111827; /* primary text */
+  --fg-muted: #4b5563; /* secondary text */
+  --border: #e7e5e4; /* subtle borders */
+  --brand: #2563eb; /* blue-600 */
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --ring: rgba(37, 99, 235, 0.35);
+
+  /* Scrollbar */
+  --scroll-track: transparent;
+  --scroll-thumb: rgba(0, 0, 0, 0.25);
+}
+
+.dark {
+  --bg: #0f131a; /* slate-950 vibe */
+  --surface: #151b24; /* card bg */
+  --muted: #0c1016; /* muted panes */
+  --fg: #e5e7eb; /* text */
+  --fg-muted: #9ca3af;
+  --border: #1f2937; /* border */
+  --brand: #60a5fa; /* blue-400 */
+  --brand-600: #60a5fa;
+  --brand-700: #3b82f6;
+  --ring: rgba(96, 165, 250, 0.45);
+
+  --scroll-thumb: rgba(255, 255, 255, 0.25);
+}
+
+/* Base document styling using the tokens */
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle selection */
+::selection {
+  background: color-mix(in oklab, var(--brand) 20%, transparent);
+}
+
+/* Focus rings */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+  border-radius: 8px;
+}
+
+/* Nice scrollbar (Chrome/Edge/WebKit) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Nice scrollbar (Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+/* Reusable component primitives (utility-first, but these help)
+––– keep logic untouched, just style coherently */
+@layer components {
+  .btn {
+    @apply inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition;
+  }
+  .btn-primary {
+    background: var(--brand-600);
+    color: white;
+  }
+  .btn-primary:hover {
+    background: var(--brand-700);
+  }
+  .btn-muted {
+    @apply bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    @apply rounded-2xl shadow-sm;
+  }
+  .input {
+    @apply w-full rounded-xl border px-3 py-2 text-sm outline-none;
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--fg);
+  }
+  .label {
+    @apply text-xs font-medium text-gray-500 dark:text-gray-400;
+  }
+}
