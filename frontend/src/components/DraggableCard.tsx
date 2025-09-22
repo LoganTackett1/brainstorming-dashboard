@@ -1,5 +1,8 @@
 import React, { useRef, useState } from "react";
-import Draggable, { type DraggableData, type DraggableEventHandler } from "react-draggable";
+import Draggable, {
+  type DraggableData,
+  type DraggableEventHandler,
+} from "react-draggable";
 import { api } from "../api/client";
 import { type Card } from "../types";
 
@@ -12,102 +15,114 @@ interface Props {
   card: Card;
   setCards: React.Dispatch<React.SetStateAction<Card[]>>;
   onRightClick: (x: number, y: number) => void;
-  sharedMode?: SharedMode; // 👈 new prop
+  sharedMode?: SharedMode;
 }
 
 const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMode }) => {
-  const nodeRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLTextAreaElement>(null);
+  // ✅ React 19-safe: provide nodeRef to react-draggable to avoid findDOMNode
+  const nodeRef = useRef<HTMLDivElement | null>(null);
 
+  const textRef = useRef<HTMLTextAreaElement | null>(null);
+  const [text, setText] = useState(card.text);
   const [dirty, setDirty] = useState(false);
 
   const canEdit = !sharedMode || sharedMode.permission === "edit";
 
-  const handleStop: DraggableEventHandler = (_e, data: DraggableData) => {
-    if (!canEdit) return;
-
-    setCards((prev) =>
-      prev.map((c) => (c.id === card.id ? { ...c, position_x: data.x, position_y: data.y } : c)),
-    );
-
-    const update = sharedMode
-      ? api.updateSharedCard(sharedMode.token, card.id, {
-          ...card,
-          position_x: data.x,
-          position_y: data.y,
-        })
-      : api.updateCard(card.id, {
-          ...card,
-          position_x: data.x,
-          position_y: data.y,
-        });
-
-    update.catch((err: any) => {
-      alert("Failed to save card position: " + err.message);
-    });
-  };
-
   const saveChanges = async () => {
     if (!canEdit) return;
+    const payload = { ...card, text };
     try {
       if (sharedMode) {
-        await api.updateSharedCard(sharedMode.token, card.id, { ...card });
+        await api.updateSharedCard(sharedMode.token, card.id, payload as any);
       } else {
-        await api.updateCard(card.id, { ...card });
+        await api.updateCard(card.id, payload as any);
       }
       setDirty(false);
-    } catch (err: any) {
-      alert("Failed to save card: " + err.message);
+    } catch (err) {
+      // swallow to avoid UI break; you can surface a toast if desired
+      console.error(err);
     }
   };
 
-  const autoResize = () => {
-    if (textRef.current) {
-      textRef.current.style.height = "auto"; // reset to shrink if needed
-      textRef.current.style.height = `${textRef.current.scrollHeight}px`;
+  const handleStop: DraggableEventHandler = (_e, data: DraggableData) => {
+    if (!canEdit) return;
+
+    // Optimistic UI position update
+    setCards((prev) =>
+      prev.map((c) =>
+        c.id === card.id ? { ...c, position_x: data.x, position_y: data.y } : c
+      )
+    );
+
+    const payload = {
+      ...card,
+      position_x: data.x,
+      position_y: data.y,
+      text,
+    };
+
+    // Persist
+    if (sharedMode) {
+      api.updateSharedCard(sharedMode.token, card.id, payload as any).catch(console.error);
+    } else {
+      api.updateCard(card.id, payload as any).catch(console.error);
     }
   };
 
   return (
     <Draggable
-      nodeRef={nodeRef}
-      position={{ x: card.position_x, y: card.position_y }}
+      nodeRef={nodeRef}                     // ✅ critical for React 19
+      defaultPosition={{ x: card.position_x, y: card.position_y }}
       onStop={handleStop}
-      disabled={!canEdit}
-      cancel="textarea"
+      // Optional: uncomment to drag only by a header/handle element you add
+      // handle=".drag-handle"
+      // cancel="input, textarea, [contenteditable='true'], .no-drag, .allow-text-select"
     >
       <div
-        ref={nodeRef}
-        className="absolute max-h-[300px] min-h-[100px] w-72 cursor-move overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 shadow-lg"
+        ref={nodeRef}                       // ✅ same ref passed to nodeRef
+        className="absolute card p-3 shadow-lg overflow-y-auto"
+        style={{
+          // Theming for dark mode (kept from prior fix)
+          background: "var(--surface)",
+          borderColor: "var(--border)",
+          color: "var(--fg)",
+          maxWidth: 320,
+          minWidth: 320,
+          cursor: canEdit ? "move" : "default",
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (canEdit) {
-            onRightClick(e.clientX, e.clientY);
-          }
+          // Allow right-click regardless of edit mode; parent will decide
+          onRightClick(e.clientX, e.clientY);
         }}
       >
+        {/* Optional handle:
+        <div className="drag-handle cursor-grab active:cursor-grabbing -mx-3 -mt-3 px-3 py-2 border-b"
+             style={{ borderColor: 'var(--border)' }}>
+          <span className="text-xs text-[var(--fg-muted)]">Drag</span>
+        </div>
+        */}
+
         <textarea
           ref={textRef}
-          value={card.text}
+          value={text}
           readOnly={!canEdit}
-          className="w-full resize-none border-none outline-none focus:ring-0"
+          className="w-full resize-none border-none focus:ring-0 outline-none bg-transparent"
           onChange={(e) => {
             if (!canEdit) return;
-            setCards((prev) =>
-              prev.map((c) => (c.id === card.id ? { ...c, text: e.target.value } : c)),
-            );
+            setText(e.target.value);
             setDirty(true);
-            autoResize();
           }}
-          onInput={autoResize}
-          style={{ minHeight: "60px", maxHeight: "240px" }} // inside card max
+          rows={3}
+          placeholder={canEdit ? "Type…" : ""}
+          style={{ color: "var(--fg)" }}
         />
 
         {dirty && canEdit && (
           <button
             onClick={saveChanges}
-            className="absolute right-1 bottom-1 rounded bg-blue-600 px-2 py-1 text-xs text-white shadow hover:bg-blue-700"
+            className="mt-2 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow hover:bg-blue-700"
           >
             Save
           </button>

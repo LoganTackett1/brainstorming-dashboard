@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api/client";
 import BoardSettingsMenu from "../components/BoardSettingsMenu";
-import { type Board, type Card } from "../types";
 import DraggableCard from "../components/DraggableCard";
 import { useStaleCheck } from "../hooks/useStaleCheck";
+import { type Board, type Card } from "../types";
 
 type Permission = "read" | "edit" | null;
 
@@ -18,6 +18,7 @@ const SharePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Right-click context menu
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -25,16 +26,44 @@ const SharePage: React.FC = () => {
     cardId?: number;
   }>({ x: 0, y: 0, type: null });
 
+  // (Your page already had settings)
   const [settingsMenu, setSettingsMenu] = useState({
     open: false,
     board: null as Board | null,
   });
 
+  // Canvas ref for relative positioning (Bug 2)
+  const boardRef = useRef<HTMLDivElement | null>(null);
+
+  const canEdit = permission === "edit";
+
   const { stale, setStale } = useStaleCheck(
-    () => api.getSharedCards(token!), // fetchFn
-    cards, // local cards state
-    [token], // deps
+    () => api.getSharedCards(token!),
+    cards,
+    [token]
   );
+
+  async function fetchBoard() {
+    try {
+      const b = await api.getSharedBoard(token!);
+      setBoard(b);
+      const p = await api.getSharePermission(token!);
+      setPermission(p);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchCards() {
+    try {
+      const cs = await api.getSharedCards(token!);
+      setCards(cs);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
 
   const handleRefresh = async () => {
     await fetchBoard();
@@ -46,75 +75,30 @@ const SharePage: React.FC = () => {
     if (token) {
       fetchBoard();
       fetchCards();
-      fetchPermission();
     }
   }, [token]);
 
-  useEffect(() => {
-    const handleClick = () => setContextMenu({ x: 0, y: 0, type: null });
-    if (contextMenu.type) {
-      window.addEventListener("click", handleClick);
-    }
-    return () => {
-      window.removeEventListener("click", handleClick);
+  // Convert client coords to canvas-relative coords (Bug 2)
+  const toCanvasCoords = (clientX: number, clientY: number) => {
+    const rect = boardRef.current?.getBoundingClientRect();
+    return {
+      x: clientX - (rect?.left ?? 0),
+      y: clientY - (rect?.top ?? 0),
     };
-  }, [contextMenu]);
+  };
 
-  async function fetchBoard() {
-    try {
-      const data = await api.getSharedBoard(token!);
-      setBoard(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function fetchCards() {
-    try {
-      const data = await api.getSharedCards(token!);
-      setCards(data);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  }
-
-  async function fetchPermission() {
-    try {
-      const res = await api.getSharePermission(token!);
-      setPermission(res.permission as Permission);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  }
-
-  if (loading) return <div className="p-6">Loading shared board...</div>;
+  if (loading) return <div className="p-6">Loading board...</div>;
   if (error) return <div className="p-6 text-red-600">Error: {error}</div>;
   if (!board) return <div className="p-6">Board not found</div>;
 
-  const canEdit = permission === "edit";
-
   return (
-    <div
-      className="relative h-screen w-full overflow-hidden bg-gray-100"
-      onContextMenu={(e) => {
-        e.preventDefault();
-        if (canEdit) {
-          setContextMenu({
-            x: e.clientX,
-            y: e.clientY,
-            type: "board", // right-click background
-          });
-        }
-      }}
-    >
-      {/* Board title */}
-      <div className="flex items-center gap-3 p-4">
+    <div className="w-full">
+      {/* Title + share permission */}
+      <div className="flex items-center gap-3 px-4 pt-3 pb-2">
         <h2 className="text-2xl font-bold tracking-tight">{board.title}</h2>
         {permission && (
           <span
-            className="rounded-full border px-2 py-1 text-xs capitalize"
+            className="text-xs px-2 py-1 rounded-full border capitalize"
             style={{
               borderColor: "var(--border)",
               background: "var(--muted)",
@@ -126,32 +110,89 @@ const SharePage: React.FC = () => {
         )}
       </div>
 
-      {/* Settings cog (only for edit links) */}
-      {canEdit && (
-        <button
-          onClick={() => setSettingsMenu({ open: true, board })}
-          className="absolute top-4 right-4 text-gray-600 hover:text-gray-900"
-        >
-          ⚙️
-        </button>
-      )}
+      {/* Themed canvas wrapper (Bug 3) + relative anchor for context menu (Bug 2) */}
+      <div
+        ref={boardRef}
+        className="relative w-full overflow-hidden"
+        style={{
+          background: "var(--surface)",
+          borderTop: "1px solid var(--border)",
+          minHeight: "calc(100vh - 56px - 64px)",
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          if (canEdit) {
+            const p = toCanvasCoords(e.clientX, e.clientY);
+            setContextMenu({
+              x: p.x,
+              y: p.y,
+              type: "board",
+            });
+          }
+        }}
+      >
+        {/* Cards */}
+        {cards.map((card) => (
+          <DraggableCard
+            key={card.id}
+            card={card}
+            setCards={setCards}
+            sharedMode={{ token: token!, permission }} // preserve your shared API usage
+            onRightClick={(x, y) => {
+              if (!canEdit) return;
+              const p = toCanvasCoords(x, y);
+              setContextMenu({ x: p.x, y: p.y, type: "card", cardId: card.id });
+            }}
+          />
+        ))}
 
-      {/* Cards */}
-      {cards.map((card) => (
-        <DraggableCard
-          key={card.id}
-          card={card}
-          setCards={setCards}
-          onRightClick={(x: number, y: number) => {
-            if (canEdit) {
-              setContextMenu({ x, y, type: "card", cardId: card.id });
-            }
-          }}
-          sharedMode={{ token: token!, permission }} // 👈 use shared API inside card
-        />
-      ))}
+        {/* Context menu (themed; Bug 3) */}
+        {contextMenu.type && (
+          <div
+            className="absolute z-50 rounded-xl border shadow-lg"
+            style={{
+              left: contextMenu.x,
+              top: contextMenu.y,
+              background: "var(--surface)",
+              borderColor: "var(--border)",
+            }}
+            onClick={() => setContextMenu({ x: 0, y: 0, type: null })}
+          >
+            {contextMenu.type === "board" && canEdit && (
+              <button
+                className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
+                onClick={async () => {
+                  const newCard = await api.createSharedCard(token!, {
+                    text: "New card",
+                    position_x: contextMenu.x,
+                    position_y: contextMenu.y,
+                  });
+                  setContextMenu({ x: 0, y: 0, type: null });
+                  await fetchCards();
+                }}
+              >
+                + Create Card
+              </button>
+            )}
+            {contextMenu.type === "card" && canEdit && (
+              <button
+                className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left text-red-600"
+                onClick={async () => {
+                  if (contextMenu.cardId) {
+                    await api.deleteSharedCard(token!, contextMenu.cardId);
+                    setCards((prev) => prev.filter((c) => c.id !== contextMenu.cardId));
+                  }
+                  setContextMenu({ x: 0, y: 0, type: null });
+                }}
+              >
+                🗑 Delete Card
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
-      {/* Settings Menu */}
+      {/* Settings Menu (kept; you already had it) */}
       {settingsMenu.open && settingsMenu.board && (
         <BoardSettingsMenu
           board={settingsMenu.board}
@@ -160,50 +201,11 @@ const SharePage: React.FC = () => {
         />
       )}
 
-      {/* Context Menu */}
-      {contextMenu.type && (
-        <div
-          className="absolute z-50 rounded border bg-white shadow"
-          style={{ top: contextMenu.y - 60, left: contextMenu.x + 20 }}
-          onClick={() => setContextMenu({ x: 0, y: 0, type: null })}
-        >
-          {contextMenu.type === "board" && (
-            <button
-              className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-              onClick={async () => {
-                const newCard = await api.createSharedCard(token!, {
-                  text: "New card",
-                  position_x: contextMenu.x,
-                  position_y: contextMenu.y,
-                });
-                fetchCards();
-                setContextMenu({ x: 0, y: 0, type: null });
-              }}
-            >
-              + Create Card
-            </button>
-          )}
-          {contextMenu.type === "card" && (
-            <button
-              className="block w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100"
-              onClick={async () => {
-                if (contextMenu.cardId) {
-                  await api.deleteSharedCard(token!, contextMenu.cardId);
-                  setCards((prev) => prev.filter((c) => c.id !== contextMenu.cardId));
-                }
-                setContextMenu({ x: 0, y: 0, type: null });
-              }}
-            >
-              🗑 Delete Card
-            </button>
-          )}
-        </div>
-      )}
-
+      {/* Refresh banner (existing behavior) */}
       {stale && (
         <button
           onClick={handleRefresh}
-          className="fixed right-4 bottom-4 rounded bg-blue-600 px-4 py-2 text-white shadow-lg hover:bg-blue-700"
+          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg hover:bg-blue-700"
         >
           🔄 Refresh Board
         </button>

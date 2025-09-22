@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import "./index.css";
 
 import Landing from "./pages/Landing";
@@ -15,14 +15,23 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useContext(AuthContext);
+  const { pathname } = useLocation();
+  const fullBleed = pathname.startsWith("/boards") || pathname.startsWith("/share");
+
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Global sticky navbar (replaces landing-only bar) */}
+    <div className="min-h-screen flex flex-col">
       <Navbar />
-      {/* Page content */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
-      {/* Footer (optional minimal) */}
+      <main
+        className={
+          fullBleed
+            ? // Full-bleed for board/share
+              "flex-1 w-full px-0 py-0"
+            : // Default app pages stay in a centered container
+              "flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+        }
+      >
+        {children}
+      </main>
       <footer className="px-4 py-6 text-sm text-[var(--fg-muted)]" />
     </div>
   );
