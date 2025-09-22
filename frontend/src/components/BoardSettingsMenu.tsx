@@ -1,101 +1,83 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import SettingItem from "./SettingItem";
 import { type Board } from "../types";
 
-interface UserAccess {
-  user_id: number;
-  email: string;
-  permission: string;
-}
-
-interface ShareLink {
-  id: number;
-  token: string;
-  permission: string;
-}
+type Tab = "general" | "share";
 
 interface Props {
   board: Board;
   closeMenu: () => void;
-  refreshBoards: () => void;
+  refreshBoards?: () => void;
 }
 
 const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards }) => {
-  const [activeTab, setActiveTab] = useState<"general" | "share">("general");
+  const [active, setActive] = useState<Tab>("general");
 
-  // --- Share tab state ---
-  const [users, setUsers] = useState<UserAccess[]>([]);
-  const [newUserEmail, setNewUserEmail] = useState("");
-  const [newUserPermission, setNewUserPermission] = useState("read");
+  // General tab state
+  const [title, setTitle] = useState(board.title);
+  const [savingTitle, setSavingTitle] = useState(false);
 
-  const [links, setLinks] = useState<ShareLink[]>([]);
-  const [newLinkPermission, setNewLinkPermission] = useState("read");
+  // Thumbnail upload
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [fileName, setFileName] = useState<string>("No file chosen");
+  const [uploading, setUploading] = useState(false);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Share tab state (uses your existing APIs)
+  const [shareLinkRead, setShareLinkRead] = useState<string | null>(null);
+  const [shareLinkEdit, setShareLinkEdit] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
 
-  // Fetch access + shares
+  // Lock body scroll while open
   useEffect(() => {
-    if (activeTab === "share") {
-      fetchAccess();
-      fetchLinks();
-    }
-  }, [activeTab]);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
-  async function fetchAccess() {
+  // Actions
+  const saveTitle = async () => {
     try {
-      const data = await api.getBoardAccess(board.id);
-      setUsers(data);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  }
-
-  async function fetchLinks() {
-    try {
-      const data = await api.getBoardShares(board.id);
-      setLinks(data);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  }
-
-  async function handleAddUser() {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Lookup user_id
-      const result = await api.getUserIdByEmail(newUserEmail);
-      if (!result.id || typeof result.id !== "number") {
-        throw new Error("User not found");
-      }
-
-      const userId = result.id;
-
-      await api.updateBoardAccess(board.id, userId, newUserPermission);
-      await fetchAccess();
-      setNewUserEmail("");
-    } catch (err: any) {
-      setError(err.message);
+      setSavingTitle(true);
+      const usedTitle = title != "" ? title.trim() : "Untitled board";
+      await api.updateBoard(board.id, usedTitle);
+      refreshBoards?.();
     } finally {
-      setLoading(false);
+      setSavingTitle(false);
     }
-  }
+  };
 
-  async function handleCreateLink() {
+  const onChooseFile = () => fileInputRef.current?.click();
+
+  const onFileChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files?.[0];
+    setFileName(file ? file.name : "No file chosen");
+  };
+
+  const uploadThumbnail = async () => {
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) return;
     try {
-      setLoading(true);
-      setError(null);
-      await api.createBoardShare(board.id, newLinkPermission);
-      await fetchLinks();
-    } catch (err: any) {
-      setError(err.message);
+      setUploading(true);
+      await api.uploadBoardThumbnail(board.id, file);
+      setFileName(file.name);
+      refreshBoards?.();
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
-  }
+  };
+
+  const createShareLink = async (permission: "read" | "edit") => {
+    try {
+      setShareLoading(true);
+      const link = await api.createBoardShare(board.id, permission); // assumes your API returns a URL string
+      if (permission === "read") setShareLinkRead(link);
+      else setShareLinkEdit(link);
+    } finally {
+      setShareLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center">
@@ -104,186 +86,160 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
 
       {/* modal */}
       <div
-        className="card relative max-h-[85vh] w-[min(92vw,900px)] overflow-auto p-6"
+        className="relative card w-[min(92vw,900px)] max-h-[85vh] overflow-auto"
         role="dialog"
         aria-modal="true"
       >
         {/* Header */}
         <div
-          className="mb-4 flex items-center justify-between border-b pb-4"
-          style={{ borderColor: "var(--border)" }}
+          className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b"
+          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
         >
-          <h3 className="text-lg font-semibold">Settings</h3>
-          <button onClick={closeMenu} className="rounded px-2 py-1 hover:bg-[var(--muted)]">
+          <h3 className="text-lg font-semibold">Board settings</h3>
+          <button onClick={closeMenu} className="px-2 py-1 rounded hover:bg-[var(--muted)]">
             ✖
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="mb-4 flex gap-2">
-          <button
-            className={`flex-1 rounded-lg px-3 py-2 text-sm ${activeTab === "general" ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]"}`}
-            onClick={() => setActiveTab("general")}
-          >
-            General
-          </button>
-          <button
-            className={`flex-1 rounded-lg px-3 py-2 text-sm ${activeTab === "share" ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]"}`}
-            onClick={() => setActiveTab("share")}
-          >
-            Sharing
-          </button>
+        <div className="px-6 pt-4">
+          <div className="inline-flex rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+            <button
+              className={`px-4 py-2 text-sm ${active === "general" ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]"}`}
+              onClick={() => setActive("general")}
+            >
+              General
+            </button>
+            <button
+              className={`px-4 py-2 text-sm ${active === "share" ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]"}`}
+              onClick={() => setActive("share")}
+            >
+              Sharing
+            </button>
+          </div>
         </div>
 
-        {/* keep your existing tab panels/content exactly as-is below */}
-        {activeTab === "general" && (
-          <div className="space-y-6">
-            <div>
-              <SettingItem
-                label="Board Title"
-                type="text"
-                initialValue={board.title}
-                onSubmit={async (val) => {
-                  if (typeof val === "string") {
-                    await api.updateBoard(board.id, val);
-                    await refreshBoards();
-                  }
-                }}
-                successMessage="Board title updated!"
-              />
-
-              <SettingItem
-                label="Upload Thumbnail"
-                type="file"
-                onSubmit={async (file) => {
-                  if (file instanceof File) {
-                    await api.uploadBoardThumbnail(board.id, file);
-                    await refreshBoards();
-                  }
-                }}
-                successMessage="Thumbnail uploaded!"
-              />
-
-              <SettingItem
-                label="Delete Thumbnail"
-                type="button"
-                buttonLabel="Delete Thumbnail"
-                onSubmit={async () => {
-                  await api.deleteBoardThumbnail(board.id);
-                  await refreshBoards();
-                }}
-                successMessage="Thumbnail deleted!"
-              />
-            </div>
-          </div>
-        )}
-
-        {activeTab === "share" && (
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-6">
-              {error && <p className="text-sm text-red-600">{error}</p>}
-
-              {/* Users Section */}
+        {/* Content */}
+        <div className="px-6 pb-6">
+          {active === "general" && (
+            <div className="mt-6 space-y-8">
+              {/* Title row — input + Save aligned horizontally (Fix #2) */}
               <div>
-                <h4 className="mb-2 font-semibold">Users</h4>
-                {users.length === 0 ? (
-                  <p className="text-sm text-gray-500">No users yet.</p>
-                ) : (
-                  <ul className="mb-2 space-y-2">
-                    {users.map((u) => (
-                      <li key={u.user_id} className="flex items-center justify-between">
-                        <span>
-                          {u.email} ({u.permission})
-                        </span>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await api.removeBoardAccess(board.id, u.user_id);
-                              await fetchAccess();
-                            } catch (err: any) {
-                              setError(err.message);
-                            }
-                          }}
-                          className="rounded bg-red-600 px-2 py-1 text-xs text-white"
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <label className="label block mb-2">Board title</label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    className="input"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Board title"
+                  />
+                  <button
+                    className="btn btn-accent self-start sm:self-auto"
+                    onClick={saveTitle}
+                    disabled={savingTitle}
+                  >
+                    {savingTitle ? "Saving…" : "Save"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Thumbnail upload — proper "Choose File" button (Fix #3) */}
+              <div>
+                <label className="label block mb-2">Thumbnail</label>
+
+                {/* Hidden native input */}
                 <input
-                  type="text"
-                  placeholder="Enter user email"
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
-                  className="mb-2 w-full rounded border p-2"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onFileChange}
                 />
-                <select
-                  value={newUserPermission}
-                  onChange={(e) => setNewUserPermission(e.target.value)}
-                  className="mb-2 w-full rounded border p-2"
-                >
-                  <option value="read">Read</option>
-                  <option value="edit">Edit</option>
-                </select>
-                <button
-                  onClick={handleAddUser}
-                  disabled={loading}
-                  className="w-full rounded bg-blue-600 px-4 py-2 text-white"
-                >
-                  {loading ? "Adding..." : "Add / Update User"}
-                </button>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <button type="button" className="btn btn-muted" onClick={onChooseFile}>
+                    Choose File
+                  </button>
+                  <span className="text-sm text-[var(--fg-muted)]">{fileName}</span>
+
+                  <div className="flex-1" />
+
+                  <button
+                    type="button"
+                    className="btn btn-success"
+                    onClick={uploadThumbnail}
+                    disabled={uploading}
+                  >
+                    {uploading ? "Uploading…" : "Upload"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {active === "share" && (
+            // Full-width stack instead of constrained half-width grid (Fix #4)
+            <div className="mt-6 space-y-6">
+              <div className="card p-4">
+                <h4 className="font-semibold mb-2">Read-only link</h4>
+                <div className="flex flex-col md:flex-row gap-3 md:items-center">
+                  <button
+                    className="btn btn-muted"
+                    onClick={() => createShareLink("read")}
+                    disabled={shareLoading}
+                  >
+                    {shareLoading ? "Working…" : "Generate"}
+                  </button>
+                  <input
+                    className="input md:flex-1"
+                    readOnly
+                    value={shareLinkRead ?? ""}
+                    placeholder="No link generated yet"
+                  />
+                </div>
               </div>
 
-              {/* Share Links Section */}
-              <div>
-                <h4 className="mb-2 font-semibold">Share Links</h4>
-                {links.length === 0 ? (
-                  <p className="text-sm text-gray-500">No share links yet.</p>
-                ) : (
-                  <ul className="mb-2 space-y-2">
-                    {links.map((l) => (
-                      <li key={l.id} className="flex items-center justify-between">
-                        <span>
-                          {window.location.origin}/share/{l.token} ({l.permission})
-                        </span>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await api.deleteBoardShare(board.id, l.id);
-                              await fetchLinks();
-                            } catch (err: any) {
-                              setError(err.message);
-                            }
-                          }}
-                          className="rounded bg-red-600 px-2 py-1 text-xs text-white"
-                        >
-                          Delete
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <select
-                  value={newLinkPermission}
-                  onChange={(e) => setNewLinkPermission(e.target.value)}
-                  className="mb-2 w-full rounded border p-2"
-                >
-                  <option value="read">Read</option>
-                  <option value="edit">Edit</option>
-                </select>
+              <div className="card p-4">
+                <h4 className="font-semibold mb-2">Edit link</h4>
+                <div className="flex flex-col md:flex-row gap-3 md:items-center">
+                  <button
+                    className="btn btn-muted"
+                    onClick={() => createShareLink("edit")}
+                    disabled={shareLoading}
+                  >
+                    {shareLoading ? "Working…" : "Generate"}
+                  </button>
+                  <input
+                    className="input md:flex-1"
+                    readOnly
+                    value={shareLinkEdit ?? ""}
+                    placeholder="No link generated yet"
+                  />
+                </div>
+              </div>
+
+              {/* Danger zone example (uses theme danger color) */}
+              <div className="card p-4">
+                <h4 className="font-semibold mb-2">Danger zone</h4>
+                <p className="text-sm text-[var(--fg-muted)] mb-3">
+                  Deleting a board is permanent. This cannot be undone.
+                </p>
                 <button
-                  onClick={handleCreateLink}
-                  disabled={loading}
-                  className="w-full rounded bg-green-600 px-4 py-2 text-white"
+                  className="btn btn-danger"
+                  onClick={async () => {
+                    if (!confirm("Delete this board? This cannot be undone.")) return;
+                    await api.deleteBoard(board.id);
+                    closeMenu();
+                    // If caller wants to refresh, let them:
+                    refreshBoards?.();
+                  }}
                 >
-                  {loading ? "Creating..." : "Create Share Link"}
+                  Delete board
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

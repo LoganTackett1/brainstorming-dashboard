@@ -66,6 +66,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ id, title }),
     }),
+  deleteBoard: (id: number) =>
+    request("/boards", {
+      method: "DELETE",
+      body: JSON.stringify({ id }),
+    }),
   getBoardDetail: (id: number) => request(`/boards/${id}`), // ✅ new method
 
   // Thumbnails
