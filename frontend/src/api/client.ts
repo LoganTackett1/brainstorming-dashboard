@@ -99,9 +99,19 @@ export const api = {
   // User access
   getBoardAccess: (boardId: number) => request(`/boards/${boardId}/access`),
 
+  createBoardAccess: (boardId: number, userId: number, permission: string) =>
+    {
+      const body: string = JSON.stringify({ user_id: userId, permission });
+      console.log(body);
+      request(`/boards/${boardId}/access`, {
+      method: "POST",
+      body: JSON.stringify({ user_id: userId, permission }),
+    })
+  },
+
   updateBoardAccess: (boardId: number, userId: number, permission: string) =>
     request(`/boards/${boardId}/access`, {
-      method: "POST",
+      method: "PUT",
       body: JSON.stringify({ user_id: userId, permission }),
     }),
 

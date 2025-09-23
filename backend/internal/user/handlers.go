@@ -112,6 +112,10 @@ func (h *EmailHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id, err := GetUserIDByEmail(h.DB, body.Email)
+	if err == sql.ErrNoRows {
+		middleware.JSONError(w, "User not found", http.StatusUnauthorized)
+		return
+	}
 	if err != nil {
 		middleware.JSONError(w, "Invalid credentials", http.StatusUnauthorized)
 		return

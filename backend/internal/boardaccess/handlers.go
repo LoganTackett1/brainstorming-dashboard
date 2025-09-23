@@ -67,6 +67,7 @@ func (h *BoardAccessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Permission string `json:"permission"` // "read" or "edit"
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			log.Print(err)
 			middleware.JSONError(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
@@ -84,6 +85,33 @@ func (h *BoardAccessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		json.NewEncoder(w).Encode(map[string]string{"status": "granted"})
+
+	case http.MethodPut:
+		// Add or update access
+		var body struct {
+			UserID     int64  `json:"user_id"`
+			Permission string `json:"permission"` // "read" or "edit"
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			log.Print(err)
+			middleware.JSONError(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if body.Permission != "read" && body.Permission != "edit" {
+			middleware.JSONError(w, "Permission must be 'read' or 'edit'", http.StatusBadRequest)
+			return
+		}
+
+		res , err := UpdateBoardAccess(h.DB, boardID, body.UserID, body.Permission)
+		log.Print(res)
+		if err != nil {
+			log.Printf("DB error: %v", err)
+			middleware.JSONError(w, "Failed to update access", http.StatusInternalServerError)
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]string{"status": "updated access"})
 
 	case http.MethodDelete:
 		// Remove access
