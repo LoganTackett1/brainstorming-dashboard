@@ -159,15 +159,17 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
     if (!email) return;
     try {
       setAccessLoading(true);
-      let userID;
-      await api.getUserIdByEmail(email).then((res) => userID = res.id);
-      if (!userID) {
+      const idObj = await api.getUserIdByEmail(email)
+      if (!idObj) {
         alert("No user with that email address was found.");
         return;
       }
+      const userID = idObj.id;
       await api.createBoardAccess(board.id, userID, invitePerm);
       // Refresh authoritatively
-      const acl = (await api.getBoardAccess(board.id)) as AccessEntry[];
+      const req = await api.getBoardAccess(board.id);
+      console.log(req);
+      const acl: AccessEntry[] = req as AccessEntry[];
       setAccessList(Array.isArray(acl) ? acl : []);
       setInviteEmail("");
       setInvitePerm("read");

@@ -90,14 +90,14 @@ export const api = {
     }),
 
   // Lookup user_id by email
-  getUserIdByEmail: async (email: string) =>
+  getUserIdByEmail: (email: string) =>
     request("/emailToID", {
       method: "POST",
       body: JSON.stringify({ email }),
     }),
 
   // User access
-  getBoardAccess: (boardId: number) => request(`/boards/${boardId}/access`),
+  getBoardAccess: async (boardId: number) => await request(`/boards/${boardId}/access`),
 
   createBoardAccess: (boardId: number, userId: number, permission: string) =>
     {
