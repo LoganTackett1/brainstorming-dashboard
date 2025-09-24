@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api/client";
 import DraggableCard from "../components/DraggableCard";
+import ImageCreateModal from "../components/ImageCreateModal";
 import { type Board, type Card } from "../types";
 
 type Permission = "read" | "edit" | null;
@@ -16,7 +17,7 @@ const SharePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Context menu (optional; keep consistent with your app)
+  // Context menu
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -27,6 +28,10 @@ const SharePage: React.FC = () => {
     y: 0,
     type: null,
   });
+
+  // Image modal
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [pendingPos, setPendingPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Stale polling banner state
   const [stale, setStale] = useState(false);
@@ -145,7 +150,7 @@ const SharePage: React.FC = () => {
             className="text-xs px-2 py-1 rounded-full border capitalize"
             style={{ borderColor: "var(--border)", background: "var(--muted)", color: "var(--fg-muted)" }}
           >
-            {permission /* string */}
+            {permission}
           </span>
         )}
       </div>
@@ -182,7 +187,7 @@ const SharePage: React.FC = () => {
           />
         ))}
 
-        {/* Optional: context menu for shared boards */}
+        {/* Context menu for shared boards (edit only) */}
         {contextMenu.type && canEdit && (
           <div
             className="absolute z-50 rounded-xl border shadow-lg"
@@ -190,25 +195,68 @@ const SharePage: React.FC = () => {
             onClick={() => setContextMenu({ x: 0, y: 0, type: null })}
           >
             {contextMenu.type === "board" && (
-              <button
-                className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
-                onClick={async () => {
-                  await api.createSharedCard(token!, {
-                    text: "New card",
-                    position_x: contextMenu.x,
-                    position_y: contextMenu.y,
-                  });
-                  setContextMenu({ x: 0, y: 0, type: null });
-                  const cs = await api.getSharedCards(token!);
-                  setCards(cs || []);
-                }}
-              >
-                + Create Card
-              </button>
+              <>
+                <button
+                  className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
+                  onClick={async () => {
+                    await api.createSharedCard(token!, {
+                      text: "New card",
+                      position_x: contextMenu.x,
+                      position_y: contextMenu.y,
+                    });
+                    setContextMenu({ x: 0, y: 0, type: null });
+                    const cs = await api.getSharedCards(token!);
+                    setCards(cs || []);
+                  }}
+                >
+                  + Create Card
+                </button>
+
+                {/* NEW: Create Image (shared) */}
+                <button
+                  className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
+                  onClick={() => {
+                    setPendingPos({ x: contextMenu.x, y: contextMenu.y });
+                    setContextMenu({ x: 0, y: 0, type: null });
+                    setImageModalOpen(true);
+                  }}
+                >
+                  🖼 Create Image
+                </button>
+              </>
             )}
           </div>
         )}
       </div>
+
+      {/* Image Modal (shared) */}
+      <ImageCreateModal
+        open={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
+        onCreateUrl={async (u) => {
+          if (!token) return;
+          await api.createSharedCard(token, {
+            kind: "image",
+            image_url: u,
+            position_x: pendingPos.x,
+            position_y: pendingPos.y,
+          });
+          const cs = await api.getSharedCards(token);
+          setCards(cs || []);
+        }}
+        onUploadFile={async (file) => {
+          if (!token) return;
+          const r = await api.uploadSharedImage(token, file);
+          await api.createSharedCard(token, {
+            kind: "image",
+            image_url: r.url,
+            position_x: pendingPos.x,
+            position_y: pendingPos.y,
+          });
+          const cs = await api.getSharedCards(token);
+          setCards(cs || []);
+        }}
+      />
 
       {/* Refresh banner */}
       {stale && (

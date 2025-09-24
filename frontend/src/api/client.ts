@@ -71,7 +71,7 @@ export const api = {
       method: "DELETE",
       body: JSON.stringify({ id }),
     }),
-  getBoardDetail: (id: number) => request(`/boards/${id}`), // ✅ new method
+  getBoardDetail: (id: number) => request(`/boards/${id}`),
 
   // Thumbnails
   uploadBoardThumbnail: (boardId: number, file: File) => {
@@ -89,6 +89,33 @@ export const api = {
       method: "DELETE",
     }),
 
+  // Image uploads (NEW)
+  uploadBoardImage: async (boardId: number, file: File): Promise<{ url: string }> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    // Use raw fetch here to avoid JSON headers; request() handles FormData but we keep it explicit
+    const res = await fetch(`${API_URL}/boards/${boardId}/images`, {
+      method: "POST",
+      headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+      body: fd,
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error || `Upload failed: ${res.status}`);
+    return data;
+  },
+
+  uploadSharedImage: async (token: string, file: File): Promise<{ url: string }> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(`${API_URL}/share/${token}/images`, {
+      method: "POST",
+      body: fd,
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error || `Upload failed: ${res.status}`);
+    return data;
+  },
+
   // Lookup user_id by email
   getUserIdByEmail: (email: string) =>
     request("/emailToID", {
@@ -100,14 +127,10 @@ export const api = {
   getBoardAccess: async (boardId: number) => await request(`/boards/${boardId}/access`),
 
   createBoardAccess: (boardId: number, userId: number, permission: string) =>
-    {
-      const body: string = JSON.stringify({ user_id: userId, permission });
-      console.log(body);
-      request(`/boards/${boardId}/access`, {
+    request(`/boards/${boardId}/access`, {
       method: "POST",
       body: JSON.stringify({ user_id: userId, permission }),
-    })
-  },
+    }),
 
   updateBoardAccess: (boardId: number, userId: number, permission: string) =>
     request(`/boards/${boardId}/access`, {
@@ -139,13 +162,26 @@ export const api = {
   // Cards
   getCards: (boardId: number) => request(`/boards/${boardId}/cards`),
 
-  createCard: (boardId: number, card: { text: string; position_x: number; position_y: number }) =>
+  // Accepts text OR image card shapes
+  createCard: (
+    boardId: number,
+    card:
+      | { text: string; position_x: number; position_y: number } // text card
+      | {
+          kind: "image";
+          image_url: string;
+          position_x: number;
+          position_y: number;
+          width?: number;
+          height?: number;
+        } // image card
+  ) =>
     request(`/boards/${boardId}/cards`, {
       method: "POST",
       body: JSON.stringify(card),
     }),
 
-  updateCard: (id: number, card: { text?: string; position_x?: number; position_y?: number }) =>
+  updateCard: (id: number, card: { text?: string; position_x?: number; position_y?: number; width?: number; height?: number }) =>
     request(`/cards/${id}`, {
       method: "PUT",
       body: JSON.stringify(card),
@@ -161,12 +197,24 @@ export const api = {
 
   // Shared cards
   getSharedCards: (token: string) => request(`/share/${token}/cards`),
-  createSharedCard: (token: string, card: any) =>
+  createSharedCard: (
+    token: string,
+    card:
+      | { text: string; position_x: number; position_y: number }
+      | {
+          kind: "image";
+          image_url: string;
+          position_x: number;
+          position_y: number;
+          width?: number;
+          height?: number;
+        }
+  ) =>
     request(`/share/${token}/cards`, {
       method: "POST",
       body: JSON.stringify(card),
     }),
-  updateSharedCard: (token: string, id: number, card: any) =>
+  updateSharedCard: (token: string, id: number, card: { text?: string; position_x?: number; position_y?: number; width?: number; height?: number }) =>
     request(`/share/${token}/cards/${id}`, {
       method: "PUT",
       body: JSON.stringify(card),

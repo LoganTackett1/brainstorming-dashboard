@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Draggable, { type DraggableData, type DraggableEventHandler } from "react-draggable";
+import { Rnd } from "react-rnd";
 import { api } from "../api/client";
 import { type Card } from "../types";
 
@@ -17,35 +18,42 @@ interface Props {
   forceReadOnly?: boolean;
 }
 
-const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMode, forceReadOnly }) => {
-  // React 19-safe nodeRef pattern to avoid findDOMNode
+const DEFAULT_IMG_W = 320;
+const DEFAULT_IMG_H = 200;
+const MAX_AUTO_W = 640;
+
+const DraggableCard: React.FC<Props> = ({
+  card,
+  setCards,
+  onRightClick,
+  sharedMode,
+  forceReadOnly,
+}) => {
+  const isImage = (card as any).kind === "image";
+  const canEdit = useMemo(
+    () => !forceReadOnly && (!sharedMode || sharedMode.permission === "edit"),
+    [forceReadOnly, sharedMode]
+  );
+
+  // -------------------------
+  // TEXT CARD (existing flow)
+  // -------------------------
   const nodeRef = useRef<HTMLDivElement | null>(null);
-
   const textRef = useRef<HTMLTextAreaElement | null>(null);
-  const [text, setText] = useState(card.text);
-  const [dirty, setDirty] = useState(false);
+  const [text, setText] = useState(card.text ?? "");
 
-  // Sync on external changes
   useEffect(() => {
-    setText(card.text);
-    setDirty(false);
+    setText(card.text ?? "");
   }, [card.id, card.text]);
 
-  // Determine editability
-  const canEdit =
-    !forceReadOnly &&
-    (!sharedMode || sharedMode.permission === "edit");
-
-  const saveChanges = async () => {
+  const saveText = async () => {
     if (!canEdit) return;
-    const payload = { ...card, text };
     try {
       if (sharedMode) {
-        await api.updateSharedCard(sharedMode.token, card.id, payload as any);
+        await api.updateSharedCard(sharedMode.token, card.id, { text });
       } else {
-        await api.updateCard(card.id, payload as any);
+        await api.updateCard(card.id, { text });
       }
-      setDirty(false);
     } catch (err) {
       console.error(err);
     }
@@ -56,30 +64,174 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
 
     // Optimistic UI position
     setCards((prev) =>
-      prev.map((c) => (c.id === card.id ? { ...c, position_x: data.x, position_y: data.y } : c))
+      prev.map((c) =>
+        c.id === card.id ? { ...c, position_x: data.x, position_y: data.y } : c
+      )
     );
 
-    const payload = {
-      ...card,
-      position_x: data.x,
-      position_y: data.y,
-      text,
-    };
+    const patch = { position_x: data.x, position_y: data.y };
+    const run = sharedMode
+      ? api.updateSharedCard(sharedMode.token, card.id, patch as any)
+      : api.updateCard(card.id, patch as any);
+    run.catch(console.error);
+  };
 
-    if (sharedMode) {
-      api.updateSharedCard(sharedMode.token, card.id, payload as any).catch(console.error);
-    } else {
-      api.updateCard(card.id, payload as any).catch(console.error);
+  // -------------------------
+  // IMAGE CARD (react-rnd)
+  // -------------------------
+  // Keep local size state (derived from props, with sensible default)
+  const [imgSize, setImgSize] = useState<{ width: number; height: number }>({
+    width: (card as any).width,
+    height: (card as any).height,
+  });
+
+  useEffect(() => {
+    // If upstream changes (e.g., refresh) override local
+    setImgSize({
+      width: Number((card as any).width),
+        //(card as any).width != null ? Number((card as any).width) : DEFAULT_IMG_W,
+      height: Number((card as any).height),
+        //(card as any).height != null ? Number((card as any).height) : DEFAULT_IMG_H,
+    });
+  }, [card.id, (card as any).width, (card as any).height]);
+
+  const persistImagePatch = async (patch: {
+    position_x?: number;
+    position_y?: number;
+    width?: number;
+    height?: number;
+  }) => {
+    try {
+      if (sharedMode) {
+        await api.updateSharedCard(sharedMode.token, card.id, patch as any);
+      } else {
+        await api.updateCard(card.id, patch as any);
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
+  // First-time natural size fit (only if card has no size yet)
+  const didAutoSizeRef = useRef(false);
+  const handleImgLoad: React.ReactEventHandler<HTMLImageElement> = (e) => {
+    if (didAutoSizeRef.current) return;
+    const hasSize = (card as any).width != null && (card as any).height != null;
+    if (hasSize) return;
+
+    const img = e.currentTarget;
+    let w = img.naturalWidth;
+    let h = img.naturalHeight;
+
+    if (w > MAX_AUTO_W) {
+      const ratio = MAX_AUTO_W / w;
+      w = MAX_AUTO_W;
+      h = Math.round(h * ratio);
+    }
+
+    // Optimistic local
+    setImgSize({ width: w, height: h });
+    setCards((prev) =>
+      prev.map((c) => (c.id === card.id ? { ...c, width: w, height: h } : c))
+    );
+
+    // Persist once
+    persistImagePatch({ width: w, height: h });
+    didAutoSizeRef.current = true;
+  };
+
+  // -------------------------
+  // RENDER
+  // -------------------------
+  if (isImage) {
+    return (
+      <Rnd
+        size={{ width: imgSize.width, height: imgSize.height }}
+        position={{ x: card.position_x, y: card.position_y }}
+        bounds="parent"
+        disableDragging={!canEdit}
+        enableResizing={
+          canEdit
+            ? {
+                top: false,
+                right: true,
+                bottom: true,
+                left: false,
+                topRight: true,
+                bottomRight: true,
+                bottomLeft: true,
+                topLeft: true,
+              }
+            : false
+        }
+        lockAspectRatio={true}
+        dragGrid={[1, 1]}
+        onDragStop={(_e, d) => {
+          // Optimistic position
+          setCards((prev) =>
+            prev.map((c) =>
+              c.id === card.id ? { ...c, position_x: d.x, position_y: d.y } : c
+            )
+          );
+          // Persist
+          persistImagePatch({ position_x: d.x, position_y: d.y });
+        }}
+        onResizeStop={(_e, _dir, ref, _delta, pos) => {
+          const w = parseFloat(ref.style.width);
+          const h = parseFloat(ref.style.height);
+
+          // Optimistic size + position (rnd can move during resize)
+          setImgSize({ width: w, height: h });
+          setCards((prev) =>
+            prev.map((c) =>
+              c.id === card.id
+                ? { ...c, width: w, height: h, position_x: pos.x, position_y: pos.y }
+                : c
+            )
+          );
+          // Persist
+          persistImagePatch({
+            width: w,
+            height: h,
+            position_x: pos.x,
+            position_y: pos.y,
+          });
+        }}
+        style={{
+          border: canEdit ? "1px solid var(--border)" : "none",
+          borderRadius: 8,
+          background: "transparent",
+        }}
+        className="group absolute"
+        onContextMenu={(e: any) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!canEdit) return;
+          onRightClick(e.clientX, e.clientY);
+        }}
+      >
+        <img
+          src={(card as any).image_url}
+          alt=""
+          className="block w-full h-full object-cover select-none pointer-events-none"
+          draggable={false}
+          onLoad={handleImgLoad}
+        />
+        {/* Subtle affordance on hover */}
+        <div className="absolute inset-0 pointer-events-none rounded-lg ring-1 ring-transparent group-hover:ring-[var(--border)]" />
+      </Rnd>
+    );
+  }
+
+  // TEXT CARD
   return (
     <Draggable
       nodeRef={nodeRef}
       position={{ x: card.position_x, y: card.position_y }}
       onStop={handleStop}
       disabled={!canEdit} // lock dragging when read-only
-      cancel="textarea"
+      cancel=".card-textarea"
+      bounds="parent"
     >
       <div
         ref={nodeRef}
@@ -103,25 +255,16 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
           ref={textRef}
           value={text}
           readOnly={!canEdit}
-          className="w-full resize-none border-none focus:ring-0 outline-none bg-transparent"
+          className="card-textarea w-full resize-none border-none focus:ring-0 outline-none bg-transparent"
           onChange={(e) => {
             if (!canEdit) return;
             setText(e.target.value);
-            setDirty(true);
           }}
+          onBlur={saveText}
           rows={3}
           placeholder={canEdit ? "Type…" : ""}
           style={{ color: "var(--fg)" }}
         />
-
-        {dirty && canEdit && (
-          <button
-            onClick={saveChanges}
-            className="mt-2 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow hover:bg-blue-700"
-          >
-            Save
-          </button>
-        )}
       </div>
     </Draggable>
   );

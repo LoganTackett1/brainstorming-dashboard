@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import { AuthContext } from "../context/AuthContext";
 import BoardSettingsMenu from "../components/BoardSettingsMenu";
 import DraggableCard from "../components/DraggableCard";
+import ImageCreateModal from "../components/ImageCreateModal";
 import { type Board, type Card } from "../types";
 
 type Permission = "read" | "edit";
@@ -41,6 +42,10 @@ const BoardPage: React.FC = () => {
     open: false,
     board: null as Board | null,
   });
+
+  // Image modal
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [pendingPos, setPendingPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Stale polling banner state
   const [stale, setStale] = useState(false);
@@ -192,15 +197,12 @@ const BoardPage: React.FC = () => {
       alive = false;
       window.clearInterval(iv);
     };
-    // Depend on id and cards snapshot so we notice local edits (and avoid stale intervals).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, snapshot(cards)]);
 
   const handleRefresh = async () => {
-    console.log(cards);
     const detailData = await api.getBoardDetail(Number(id));
     const cardData = await api.getCards(Number(id));
-    console.log(cardData);
     setBoard(detailData);
     setCards(cardData || []);
     setStale(false);
@@ -292,20 +294,34 @@ const BoardPage: React.FC = () => {
             onClick={() => setContextMenu({ x: 0, y: 0, type: null })}
           >
             {contextMenu.type === "board" && (
-              <button
-                className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
-                onClick={async () => {
-                  await api.createCard(board.id, {
-                    text: "New card",
-                    position_x: contextMenu.x,
-                    position_y: contextMenu.y,
-                  });
-                  setContextMenu({ x: 0, y: 0, type: null });
-                  await fetchCards();
-                }}
-              >
-                + Create Card
-              </button>
+              <>
+                <button
+                  className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
+                  onClick={async () => {
+                    await api.createCard(board.id, {
+                      text: "New card",
+                      position_x: contextMenu.x,
+                      position_y: contextMenu.y,
+                    });
+                    setContextMenu({ x: 0, y: 0, type: null });
+                    await fetchCards();
+                  }}
+                >
+                  + Create Card
+                </button>
+
+                {/* NEW: Create Image */}
+                <button
+                  className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
+                  onClick={() => {
+                    setPendingPos({ x: contextMenu.x, y: contextMenu.y });
+                    setContextMenu({ x: 0, y: 0, type: null });
+                    setImageModalOpen(true);
+                  }}
+                >
+                  🖼 Create Image
+                </button>
+              </>
             )}
             {contextMenu.type === "card" && (
               <button
@@ -333,6 +349,31 @@ const BoardPage: React.FC = () => {
           refreshBoards={fetchBoard}
         />
       )}
+
+      {/* Image Modal */}
+      <ImageCreateModal
+        open={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
+        onCreateUrl={async (u) => {
+          await api.createCard(Number(id), {
+            kind: "image",
+            image_url: u,
+            position_x: pendingPos.x,
+            position_y: pendingPos.y,
+          });
+          await fetchCards();
+        }}
+        onUploadFile={async (file) => {
+          const r = await api.uploadBoardImage(Number(id), file);
+          await api.createCard(Number(id), {
+            kind: "image",
+            image_url: r.url,
+            position_x: pendingPos.x,
+            position_y: pendingPos.y,
+          });
+          await fetchCards();
+        }}
+      />
 
       {/* Refresh banner */}
       {stale && (
