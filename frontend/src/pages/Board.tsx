@@ -1,11 +1,20 @@
-import React, { useEffect, useState, useContext, useRef } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { AuthContext } from "../context/AuthContext";
 import BoardSettingsMenu from "../components/BoardSettingsMenu";
 import DraggableCard from "../components/DraggableCard";
-import { useStaleCheck } from "../hooks/useStaleCheck";
 import { type Board, type Card } from "../types";
+
+type Permission = "read" | "edit";
+type AccessEntry = {
+  id: number;
+  board_id: number;
+  user_id: number;
+  email: string;
+  permission: Permission;
+  created_at: string;
+};
 
 const BoardPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,7 +25,10 @@ const BoardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Right-click context menu (board-level and card-level)
+  // collaborator permission (for non-owners)
+  const [collabPerm, setCollabPerm] = useState<Permission | null>(null);
+
+  // Right-click context menu
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -30,50 +42,91 @@ const BoardPage: React.FC = () => {
     board: null as Board | null,
   });
 
-  // Canvas ref for relative positioning (Bug 2)
+  // Canvas ref for relative positioning
   const boardRef = useRef<HTMLDivElement | null>(null);
 
-  // Poll for stale data (existing behavior)
-  const { stale, setStale } = useStaleCheck(
-    () => api.getCards(Number(id)),
-    cards,
-    [id]
-  );
-
-  async function fetchBoard() {
-    try {
-      const data = await api.getBoardDetail(Number(id));
-      setBoard(data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function fetchCards() {
-    try {
-      const data = await api.getCards(Number(id));
-      setCards(data);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  }
-
-  const handleRefresh = async () => {
-    await fetchBoard();
-    await fetchCards();
-    setStale(false);
+  const fetchBoard = async () => {
+    const data = await api.getBoardDetail(Number(id));
+    setBoard(data);
   };
 
+  const fetchCards = async () => {
+    const data = await api.getCards(Number(id));
+    setCards(data || []);
+  };
+
+  // Load board & cards
   useEffect(() => {
-    if (id) {
-      fetchBoard();
-      fetchCards();
-    }
+    let active = true;
+    (async () => {
+      try {
+        if (!id) throw new Error("No board id");
+        await fetchBoard();
+        await fetchCards();
+        setError(null);
+      } catch (e: any) {
+        if (!active) return;
+        setError(e?.message ?? "Failed to load board");
+      } finally {
+        if (!active) return;
+        setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Close context menu on outside click (existing behavior)
+  // If user is NOT owner, determine their permission (read/edit) from access list
+  useEffect(() => {
+    (async () => {
+      if (!board || !user) return;
+      if (board.owner_id === user.user_id) {
+        setCollabPerm(null); // owner path
+        return;
+      }
+      try {
+        const acl = (await api.getBoardAccess(board.id)) as AccessEntry[];
+        const mine: AccessEntry | undefined = Array.isArray(acl)
+          ? acl.find(a => a.user_id === user.user_id || a.email?.toLowerCase() === (user.email ?? "").toLowerCase())
+          : undefined;
+        setCollabPerm(mine?.permission ?? "read"); // default to read if something’s weird
+        console.log(collabPerm);
+      } catch {
+        // If access list is not visible to collaborators, fall back to 'read' for safety.
+        setCollabPerm("read");
+      }
+    })();
+  }, [board, user]);
+
+  const isOwner = useMemo(() => {
+    if (!board || !user) return false;
+    return board.owner_id === user.user_id;
+  }, [board, user]);
+
+  const permissionLabel: "Owner" | Permission | null = useMemo(() => {
+    if (!board || !user) return null;
+    if (isOwner) return "Owner";
+    return collabPerm; // "edit" or "read"
+  }, [board, user, isOwner, collabPerm]);
+
+  // Whether the current user is allowed to edit on this page
+  const canEdit: boolean = useMemo(() => {
+    if (isOwner) return true;
+    return collabPerm === "edit";
+  }, [isOwner, collabPerm]);
+
+  // Convert client coords to canvas-relative coords
+  const toCanvasCoords = (clientX: number, clientY: number) => {
+    const rect = boardRef.current?.getBoundingClientRect();
+    return {
+      x: clientX - (rect?.left ?? 0),
+      y: clientY - (rect?.top ?? 0),
+    };
+  };
+
+  // Close context menu when clicking elsewhere
   useEffect(() => {
     const handleClick = () => setContextMenu({ x: 0, y: 0, type: null });
     if (contextMenu.type) {
@@ -85,38 +138,31 @@ const BoardPage: React.FC = () => {
   }, [contextMenu]);
 
   if (loading) return <div className="p-6">Loading board...</div>;
-  if (error) return <div className="p-6 text-red-600">Error: {error}</div>;
-  if (!board) return <div className="p-6">Board not found</div>;
-
-  const isOwner = board.owner_id === user?.user_id;
-
-  // Convert client coords to canvas-relative coords (Bug 2)
-  const toCanvasCoords = (clientX: number, clientY: number) => {
-    const rect = boardRef.current?.getBoundingClientRect();
-    return {
-      x: clientX - (rect?.left ?? 0),
-      y: clientY - (rect?.top ?? 0),
-    };
-  };
+  if (error || !board) return <div className="p-6 text-red-600">Error: {error ?? "Unknown"}</div>;
 
   return (
     <div className="w-full">
       {/* Title + access chip */}
       <div className="flex items-center gap-3 px-4 pt-3 pb-2">
         <h2 className="text-2xl font-bold tracking-tight">{board.title}</h2>
-        <span
-          className="text-xs px-2 py-1 rounded-full border"
-          style={{
-            borderColor: "var(--border)",
-            background: "var(--muted)",
-            color: "var(--fg-muted)",
-          }}
-        >
-          {isOwner ? "Owner" : "Collaborator"}
-        </span>
+        {permissionLabel && (
+          <span
+            className={`text-xs px-2 py-1 rounded-full border capitalize ${
+              permissionLabel === "read" ? "opacity-90" : ""
+            }`}
+            style={{
+              borderColor: "var(--border)",
+              background: "var(--muted)",
+              color: "var(--fg-muted)",
+            }}
+            title={isOwner ? "Owner" : permissionLabel}
+          >
+            {isOwner ? "Owner" : permissionLabel}
+          </span>
+        )}
       </div>
 
-      {/* Settings cog */}
+      {/* Settings cog for owner only */}
       {isOwner && (
         <button
           onClick={() => setSettingsMenu({ open: true, board })}
@@ -128,22 +174,18 @@ const BoardPage: React.FC = () => {
         </button>
       )}
 
-      {/* The canvas wrapper:
-          - uses themed surface/border so dark mode looks correct (Bug 3)
-          - is the positioning parent for the absolute context menu (Bug 2)
-      */}
+      {/* Canvas */}
       <div
         ref={boardRef}
         className="relative w-full overflow-hidden"
         style={{
           background: "var(--surface)",
           borderTop: "1px solid var(--border)",
-          // Fill viewport under sticky navbar + title row
           minHeight: "calc(100vh - 56px - 64px)",
         }}
-        // Board-level right click → create card at cursor
         onContextMenu={(e) => {
           e.preventDefault();
+          if (!canEdit) return; // lock board-level menu for read-only
           const p = toCanvasCoords(e.clientX, e.clientY);
           setContextMenu({
             x: p.x,
@@ -158,16 +200,18 @@ const BoardPage: React.FC = () => {
             key={card.id}
             card={card}
             setCards={setCards}
-            // Card-level right-click (Bug 2) – translate to canvas coords
+            // Force read-only on the board page if collaborator with read permission
+            forceReadOnly={!canEdit}
             onRightClick={(x, y) => {
+              if (!canEdit) return;
               const p = toCanvasCoords(x, y);
               setContextMenu({ x: p.x, y: p.y, type: "card", cardId: card.id });
             }}
           />
         ))}
 
-        {/* Context menu (uses themed surface/border; Bug 3) */}
-        {contextMenu.type && (
+        {/* Context menu (create/delete) only when canEdit */}
+        {contextMenu.type && canEdit && (
           <div
             className="absolute z-50 rounded-xl border shadow-lg"
             style={{
@@ -182,7 +226,7 @@ const BoardPage: React.FC = () => {
               <button
                 className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
                 onClick={async () => {
-                  const newCard = await api.createCard(board.id, {
+                  await api.createCard(board.id, {
                     text: "New card",
                     position_x: contextMenu.x,
                     position_y: contextMenu.y,
@@ -219,16 +263,6 @@ const BoardPage: React.FC = () => {
           closeMenu={() => setSettingsMenu({ open: false, board: null })}
           refreshBoards={fetchBoard}
         />
-      )}
-
-      {/* Refresh banner (existing behavior) */}
-      {stale && (
-        <button
-          onClick={handleRefresh}
-          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg hover:bg-blue-700"
-        >
-          🔄 Refresh Board
-        </button>
       )}
     </div>
   );

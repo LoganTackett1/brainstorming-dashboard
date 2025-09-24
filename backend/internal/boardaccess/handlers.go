@@ -44,10 +44,6 @@ func (h *BoardAccessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		middleware.JSONError(w, "Failed to check permissions", http.StatusInternalServerError)
 		return
 	}
-	if perm != board.PermissionOwner {
-		middleware.JSONError(w, "Forbidden", http.StatusForbidden)
-		return
-	}
 
 	switch r.Method {
 	case http.MethodGet:
@@ -61,6 +57,10 @@ func (h *BoardAccessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(accessList)
 
 	case http.MethodPost:
+		if perm != board.PermissionOwner {
+			middleware.JSONError(w, "Forbidden", http.StatusForbidden)
+			return
+		}
 		// Add or update access
 		var body struct {
 			UserID     int64  `json:"user_id"`
@@ -87,6 +87,10 @@ func (h *BoardAccessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"status": "granted"})
 
 	case http.MethodPut:
+		if perm != board.PermissionOwner {
+			middleware.JSONError(w, "Forbidden", http.StatusForbidden)
+			return
+		}
 		// Add or update access
 		var body struct {
 			UserID     int64  `json:"user_id"`
@@ -114,6 +118,10 @@ func (h *BoardAccessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"status": "updated access"})
 
 	case http.MethodDelete:
+		if perm != board.PermissionOwner {
+			middleware.JSONError(w, "Forbidden", http.StatusForbidden)
+			return
+		}
 		// Remove access
 		var body struct {
 			UserID int64 `json:"user_id"`

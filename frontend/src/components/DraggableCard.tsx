@@ -1,8 +1,5 @@
 import React, { useRef, useState } from "react";
-import Draggable, {
-  type DraggableData,
-  type DraggableEventHandler,
-} from "react-draggable";
+import Draggable, { type DraggableData, type DraggableEventHandler } from "react-draggable";
 import { api } from "../api/client";
 import { type Card } from "../types";
 
@@ -16,17 +13,22 @@ interface Props {
   setCards: React.Dispatch<React.SetStateAction<Card[]>>;
   onRightClick: (x: number, y: number) => void;
   sharedMode?: SharedMode;
+  /** When true, the card is locked (no drag, no edit, no save) regardless of sharedMode. */
+  forceReadOnly?: boolean;
 }
 
-const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMode }) => {
-  // ✅ React 19-safe: provide nodeRef to react-draggable to avoid findDOMNode
+const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMode, forceReadOnly }) => {
+  // React 19-safe nodeRef pattern to avoid findDOMNode
   const nodeRef = useRef<HTMLDivElement | null>(null);
 
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const [text, setText] = useState(card.text);
   const [dirty, setDirty] = useState(false);
 
-  const canEdit = !sharedMode || sharedMode.permission === "edit";
+  // Determine editability
+  const canEdit =
+    !forceReadOnly &&
+    (!sharedMode || sharedMode.permission === "edit");
 
   const saveChanges = async () => {
     if (!canEdit) return;
@@ -39,7 +41,6 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
       }
       setDirty(false);
     } catch (err) {
-      // swallow to avoid UI break; you can surface a toast if desired
       console.error(err);
     }
   };
@@ -47,11 +48,9 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
   const handleStop: DraggableEventHandler = (_e, data: DraggableData) => {
     if (!canEdit) return;
 
-    // Optimistic UI position update
+    // Optimistic UI position
     setCards((prev) =>
-      prev.map((c) =>
-        c.id === card.id ? { ...c, position_x: data.x, position_y: data.y } : c
-      )
+      prev.map((c) => (c.id === card.id ? { ...c, position_x: data.x, position_y: data.y } : c))
     );
 
     const payload = {
@@ -61,7 +60,6 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
       text,
     };
 
-    // Persist
     if (sharedMode) {
       api.updateSharedCard(sharedMode.token, card.id, payload as any).catch(console.error);
     } else {
@@ -71,39 +69,29 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
 
   return (
     <Draggable
-      nodeRef={nodeRef}                     // ✅ critical for React 19
+      nodeRef={nodeRef}
       defaultPosition={{ x: card.position_x, y: card.position_y }}
       onStop={handleStop}
-      // Optional: uncomment to drag only by a header/handle element you add
-      // handle=".drag-handle"
-      // cancel="input, textarea, [contenteditable='true'], .no-drag, .allow-text-select"
+      disabled={!canEdit} // lock dragging when read-only
     >
       <div
-        ref={nodeRef}                       // ✅ same ref passed to nodeRef
+        ref={nodeRef}
         className="absolute card p-3 shadow-lg overflow-y-auto"
         style={{
-          // Theming for dark mode (kept from prior fix)
           background: "var(--surface)",
           borderColor: "var(--border)",
           color: "var(--fg)",
           maxWidth: 320,
-          minWidth: 320,
+          minWidth: 220,
           cursor: canEdit ? "move" : "default",
         }}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          // Allow right-click regardless of edit mode; parent will decide
+          if (!canEdit) return; // don't open card menu if read-only
           onRightClick(e.clientX, e.clientY);
         }}
       >
-        {/* Optional handle:
-        <div className="drag-handle cursor-grab active:cursor-grabbing -mx-3 -mt-3 px-3 py-2 border-b"
-             style={{ borderColor: 'var(--border)' }}>
-          <span className="text-xs text-[var(--fg-muted)]">Drag</span>
-        </div>
-        */}
-
         <textarea
           ref={textRef}
           value={text}
