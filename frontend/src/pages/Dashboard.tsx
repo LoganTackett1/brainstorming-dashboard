@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { AuthContext } from "../context/AuthContext";
 import BoardCard from "../components/BoardCard";
@@ -10,7 +9,6 @@ import CreateBoardModal from "../components/CreateBoardModal";
 type TabKey = "owned" | "shared";
 
 const Dashboard: React.FC = () => {
-  const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
   const [boards, setBoards] = useState<Board[]>([]);
@@ -52,20 +50,6 @@ const Dashboard: React.FC = () => {
   );
 
   const displayedBoards = activeTab === "owned" ? ownedBoards : sharedBoards;
-
-  const onNewBoard = async () => {
-    const defaultTitle: string = "Untitled board";
-    const title = window.prompt("Board title:", defaultTitle);
-    if (title === null) return; // user cancelled
-    try {
-      const usedTitle = title != "" ? title.trim() : defaultTitle;
-      await api.createBoard(usedTitle);
-      fetchBoards();
-    } catch (e: any) {
-      console.error(e);
-      alert(e?.message ?? "Failed to create board");
-    }
-  };
 
   return (
     <div className="space-y-6">
