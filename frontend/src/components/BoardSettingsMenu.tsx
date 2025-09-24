@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import { type Board } from "../types";
 import ConfirmDialog from "./ConfirmDialog";
-import CloseIcon from '@/assets/close.svg?react';
+import CloseIcon from "@/assets/close.svg?react";
 
 type Tab = "general" | "share";
 type Permission = "read" | "edit";
@@ -15,7 +15,7 @@ interface Props {
 
 /** Access entry shape per backend */
 type AccessEntry = {
-  id: number;            // access row id
+  id: number; // access row id
   board_id: number;
   user_id: number;
   email: string;
@@ -25,7 +25,7 @@ type AccessEntry = {
 
 /** Share link shape per backend */
 type ShareEntry = {
-  id: number;            // share id (used by deleteBoardShare)
+  id: number; // share id (used by deleteBoardShare)
   board_id: number;
   token: string;
   permission: Permission;
@@ -60,7 +60,6 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
   const [invitePerm, setInvitePerm] = useState<Permission>("read");
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-
 
   // Lock body scroll while open
   useEffect(() => {
@@ -164,7 +163,7 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
     if (!email) return;
     try {
       setAccessLoading(true);
-      const idObj = await api.getUserIdByEmail(email)
+      const idObj = await api.getUserIdByEmail(email);
       if (!idObj) {
         alert("No user with that email address was found.");
         return;
@@ -185,9 +184,11 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
 
   const changeMemberPermission = async (accessId: number, newPerm: Permission) => {
     let user_id;
-    const accessObject = accessList.filter((e) => {return (e.id == accessId)})
+    const accessObject = accessList.filter((e) => {
+      return e.id == accessId;
+    });
     if (accessObject.length == 0) {
-      return
+      return;
     } else {
       user_id = accessObject[0].user_id;
     }
@@ -195,7 +196,7 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
       setAccessLoading(true);
       await api.updateBoardAccess(board.id, user_id, newPerm);
       setAccessList((prev) =>
-        prev.map((m) => (m.id === accessId ? { ...m, permission: newPerm } : m))
+        prev.map((m) => (m.id === accessId ? { ...m, permission: newPerm } : m)),
       );
     } finally {
       setAccessLoading(false);
@@ -206,10 +207,12 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
     console.log(accessId);
     console.log(accessList);
     let user_id;
-    const accessObject = accessList.filter((e) => {return (e.id == accessId)})
-    console.log(accessObject)
+    const accessObject = accessList.filter((e) => {
+      return e.id == accessId;
+    });
+    console.log(accessObject);
     if (accessObject.length == 0) {
-      return
+      return;
     } else {
       user_id = accessObject[0].user_id;
     }
@@ -228,21 +231,28 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
       <div className="absolute inset-0 bg-black/40" onClick={closeMenu} />
 
       {/* modal */}
-      <div className="relative card w-[min(92vw,900px)] max-h-[85vh] overflow-auto" role="dialog" aria-modal="true">
+      <div
+        className="card relative max-h-[85vh] w-[min(92vw,900px)] overflow-auto"
+        role="dialog"
+        aria-modal="true"
+      >
         {/* Header */}
         <div
-          className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b"
+          className="sticky top-0 z-10 flex items-center justify-between border-b px-6 py-4"
           style={{ borderColor: "var(--border)", background: "var(--surface)" }}
         >
           <h3 className="text-lg font-semibold">Board settings</h3>
-          <button onClick={closeMenu} className="px-2 py-1 rounded hover:bg-[var(--muted)]">
-            <CloseIcon className="w-5 h-5 text-[var(--fg-muted)] hover:text-[var(--fg)]" />
+          <button onClick={closeMenu} className="rounded px-2 py-1 hover:bg-[var(--muted)]">
+            <CloseIcon className="h-5 w-5 text-[var(--fg-muted)] hover:text-[var(--fg)]" />
           </button>
         </div>
 
         {/* Tabs */}
         <div className="px-6 pt-4">
-          <div className="inline-flex rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+          <div
+            className="inline-flex overflow-hidden rounded-xl border"
+            style={{ borderColor: "var(--border)" }}
+          >
             <button
               className={`px-4 py-2 text-sm ${active === "general" ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]"}`}
               onClick={() => setActive("general")}
@@ -265,15 +275,19 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
             <div className="mt-6 space-y-8">
               {/* Title row */}
               <div>
-                <label className="label block mb-2">Board title</label>
-                <div className="flex flex-col sm:flex-row gap-3">
+                <label className="label mb-2 block">Board title</label>
+                <div className="flex flex-col gap-3 sm:flex-row">
                   <input
                     className="input"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Board title"
                   />
-                  <button className="btn btn-accent self-start sm:self-auto" onClick={saveTitle} disabled={savingTitle}>
+                  <button
+                    className="btn btn-accent self-start sm:self-auto"
+                    onClick={saveTitle}
+                    disabled={savingTitle}
+                  >
                     {savingTitle ? "Saving…" : "Save"}
                   </button>
                 </div>
@@ -281,15 +295,26 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
 
               {/* Thumbnail upload */}
               <div>
-                <label className="label block mb-2">Thumbnail</label>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <label className="label mb-2 block">Thumbnail</label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onFileChange}
+                />
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                   <button type="button" className="btn btn-muted" onClick={onChooseFile}>
                     Choose File
                   </button>
                   <span className="text-sm text-[var(--fg-muted)]">{fileName}</span>
                   <div className="flex-1" />
-                  <button type="button" className="btn btn-success" onClick={uploadThumbnail} disabled={uploading}>
+                  <button
+                    type="button"
+                    className="btn btn-success"
+                    onClick={uploadThumbnail}
+                    disabled={uploading}
+                  >
                     {uploading ? "Uploading…" : "Upload"}
                   </button>
                 </div>
@@ -302,8 +327,8 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
             <div className="mt-6 space-y-6">
               {/* Invite collaborators */}
               <div className="card p-4">
-                <h4 className="font-semibold mb-2">Invite collaborators</h4>
-                <div className="flex flex-col md:flex-row gap-3 md:items-center">
+                <h4 className="mb-2 font-semibold">Invite collaborators</h4>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center">
                   <input
                     className="input md:flex-1"
                     placeholder="name@example.com"
@@ -318,7 +343,11 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
                     <option value="read">Read</option>
                     <option value="edit">Edit</option>
                   </select>
-                  <button className="btn btn-accent" onClick={inviteMember} disabled={accessLoading || !inviteEmail}>
+                  <button
+                    className="btn btn-accent"
+                    onClick={inviteMember}
+                    disabled={accessLoading || !inviteEmail}
+                  >
                     {accessLoading ? "Adding…" : "Add"}
                   </button>
                 </div>
@@ -331,20 +360,20 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
                     accessList.map((m) => (
                       <div
                         key={m.id}
-                        className="flex flex-col md:flex-row md:items-center gap-3 justify-between rounded-lg border p-3"
+                        className="flex flex-col justify-between gap-3 rounded-lg border p-3 md:flex-row md:items-center"
                         style={{ borderColor: "var(--border)" }}
                       >
                         <div className="text-sm">
                           <div className="font-medium">{m.email}</div>
-                          <div className="text-xs text-[var(--fg-muted)]">
-                            Access ID: {m.id}
-                          </div>
+                          <div className="text-xs text-[var(--fg-muted)]">Access ID: {m.id}</div>
                         </div>
                         <div className="flex items-center gap-2">
                           <select
                             className="input md:w-40"
                             value={m.permission}
-                            onChange={(e) => changeMemberPermission(m.id, e.target.value as Permission)}
+                            onChange={(e) =>
+                              changeMemberPermission(m.id, e.target.value as Permission)
+                            }
                           >
                             <option value="read">Read</option>
                             <option value="edit">Edit</option>
@@ -365,9 +394,13 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
 
               {/* Read-only links */}
               <div className="card p-4">
-                <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <h4 className="font-semibold">Read-only links</h4>
-                  <button className="btn btn-muted" onClick={() => createShareLink("read")} disabled={linkLoading}>
+                  <button
+                    className="btn btn-muted"
+                    onClick={() => createShareLink("read")}
+                    disabled={linkLoading}
+                  >
                     {linkLoading ? "Working…" : "Create new read link"}
                   </button>
                 </div>
@@ -381,12 +414,14 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
                       return (
                         <div
                           key={l.id}
-                          className="flex flex-col md:flex-row md:items-center gap-3 justify-between rounded-lg border p-3"
+                          className="flex flex-col justify-between gap-3 rounded-lg border p-3 md:flex-row md:items-center"
                           style={{ borderColor: "var(--border)" }}
                         >
-                          <div className="flex-1 min-w-0">
+                          <div className="min-w-0 flex-1">
                             <input className="input w-full" readOnly value={url} />
-                            <div className="mt-1 text-xs text-[var(--fg-muted)]">Share ID: {l.id}</div>
+                            <div className="mt-1 text-xs text-[var(--fg-muted)]">
+                              Share ID: {l.id}
+                            </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <button
@@ -395,7 +430,10 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
                             >
                               Copy
                             </button>
-                            <button className="btn btn-danger" onClick={() => deleteShareLink(l.id)}>
+                            <button
+                              className="btn btn-danger"
+                              onClick={() => deleteShareLink(l.id)}
+                            >
                               Delete
                             </button>
                           </div>
@@ -408,9 +446,13 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
 
               {/* Edit links */}
               <div className="card p-4">
-                <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <h4 className="font-semibold">Edit links</h4>
-                  <button className="btn btn-muted" onClick={() => createShareLink("edit")} disabled={linkLoading}>
+                  <button
+                    className="btn btn-muted"
+                    onClick={() => createShareLink("edit")}
+                    disabled={linkLoading}
+                  >
                     {linkLoading ? "Working…" : "Create new edit link"}
                   </button>
                 </div>
@@ -424,12 +466,14 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
                       return (
                         <div
                           key={l.id}
-                          className="flex flex-col md:flex-row md:items-center gap-3 justify-between rounded-lg border p-3"
+                          className="flex flex-col justify-between gap-3 rounded-lg border p-3 md:flex-row md:items-center"
                           style={{ borderColor: "var(--border)" }}
                         >
-                          <div className="flex-1 min-w-0">
+                          <div className="min-w-0 flex-1">
                             <input className="input w-full" readOnly value={url} />
-                            <div className="mt-1 text-xs text-[var(--fg-muted)]">Share ID: {l.id}</div>
+                            <div className="mt-1 text-xs text-[var(--fg-muted)]">
+                              Share ID: {l.id}
+                            </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <button
@@ -438,7 +482,10 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
                             >
                               Copy
                             </button>
-                            <button className="btn btn-danger" onClick={() => deleteShareLink(l.id)}>
+                            <button
+                              className="btn btn-danger"
+                              onClick={() => deleteShareLink(l.id)}
+                            >
                               Delete
                             </button>
                           </div>
@@ -451,35 +498,32 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
 
               {/* Danger zone */}
               <div className="card p-4">
-                <h4 className="font-semibold mb-2">Danger zone</h4>
-                <p className="text-sm text-[var(--fg-muted)] mb-3">
+                <h4 className="mb-2 font-semibold">Danger zone</h4>
+                <p className="mb-3 text-sm text-[var(--fg-muted)]">
                   Deleting a board is permanent. This cannot be undone.
                 </p>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => setConfirmDeleteOpen(true)}
-                >
+                <button className="btn btn-danger" onClick={() => setConfirmDeleteOpen(true)}>
                   Delete board
                 </button>
               </div>
             </div>
           )}
         </div>
-          <ConfirmDialog
-            open={confirmDeleteOpen}
-            onCancel={() => setConfirmDeleteOpen(false)}
-            onConfirm={async () => {
-              await api.deleteBoard(board.id);
-              setConfirmDeleteOpen(false);
-              closeMenu();
-              refreshBoards?.();
-            }}
-            title="Delete board?"
-            message="Deleting a board is permanent. This cannot be undone."
-            confirmText="Delete"
-            cancelText="Cancel"
-            tone="danger"
-          />
+        <ConfirmDialog
+          open={confirmDeleteOpen}
+          onCancel={() => setConfirmDeleteOpen(false)}
+          onConfirm={async () => {
+            await api.deleteBoard(board.id);
+            setConfirmDeleteOpen(false);
+            closeMenu();
+            refreshBoards?.();
+          }}
+          title="Delete board?"
+          message="Deleting a board is permanent. This cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          tone="danger"
+        />
       </div>
     </div>
   );

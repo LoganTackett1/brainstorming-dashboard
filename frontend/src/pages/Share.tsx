@@ -52,8 +52,8 @@ const SharePage: React.FC = () => {
           pResp && typeof pResp === "object" && "permission" in pResp
             ? (pResp as any).permission
             : typeof pResp === "string"
-            ? (pResp as Permission)
-            : null;
+              ? (pResp as Permission)
+              : null;
 
         if (!active) return;
         setBoard(b);
@@ -91,7 +91,7 @@ const SharePage: React.FC = () => {
           t: c.text,
           u: (c as any).updated_at ?? null,
         }))
-        .sort((a, b) => a.id - b.id)
+        .sort((a, b) => a.id - b.id),
     );
 
   useEffect(() => {
@@ -153,7 +153,8 @@ const SharePage: React.FC = () => {
   };
 
   if (loading) return <div className="px-4 py-6">Loading…</div>;
-  if (error || !board) return <div className="px-4 py-6 text-red-600">Error: {error ?? "Unknown"}</div>;
+  if (error || !board)
+    return <div className="px-4 py-6 text-red-600">Error: {error ?? "Unknown"}</div>;
 
   return (
     <div className="w-full">
@@ -162,8 +163,12 @@ const SharePage: React.FC = () => {
         <h2 className="text-2xl font-bold tracking-tight">{board.title}</h2>
         {permission && (
           <span
-            className="text-xs px-2 py-1 rounded-full border capitalize"
-            style={{ borderColor: "var(--border)", background: "var(--muted)", color: "var(--fg-muted)" }}
+            className="rounded-full border px-2 py-1 text-xs capitalize"
+            style={{
+              borderColor: "var(--border)",
+              background: "var(--muted)",
+              color: "var(--fg-muted)",
+            }}
           >
             {permission}
           </span>
@@ -205,14 +210,19 @@ const SharePage: React.FC = () => {
         {/* Context menu for shared boards (edit only) */}
         {contextMenu.type && canEdit && (
           <div
-            className="absolute z-50 rounded-xl border shadow-lg overflow-hidden"
-            style={{ left: contextMenu.x, top: contextMenu.y, background: "var(--surface)", borderColor: "var(--border)" }}
+            className="absolute z-50 overflow-hidden rounded-xl border shadow-lg"
+            style={{
+              left: contextMenu.x,
+              top: contextMenu.y,
+              background: "var(--surface)",
+              borderColor: "var(--border)",
+            }}
             onClick={() => setContextMenu({ x: 0, y: 0, type: null })}
           >
             {contextMenu.type === "board" && (
               <>
                 <button
-                  className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
+                  className="block w-full px-4 py-2 text-left hover:bg-[var(--muted)]"
                   onClick={async () => {
                     await api.createSharedCard(token!, {
                       text: "New card",
@@ -229,21 +239,21 @@ const SharePage: React.FC = () => {
 
                 {/* Create Image (shared) */}
                 <button
-                  className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
+                  className="block w-full px-4 py-2 text-left hover:bg-[var(--muted)]"
                   onClick={() => {
                     setPendingPos({ x: contextMenu.x, y: contextMenu.y });
                     setContextMenu({ x: 0, y: 0, type: null });
                     setImageModalOpen(true);
                   }}
                 >
-                  <ImageIcon className="inline w-5 h-5 text-[var(--fg-muted)]" /> Create Image
+                  <ImageIcon className="inline h-5 w-5 text-[var(--fg-muted)]" /> Create Image
                 </button>
               </>
             )}
 
             {contextMenu.type === "card" && (
               <button
-                className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left text-red-600"
+                className="block w-full px-4 py-2 text-left text-red-600 hover:bg-[var(--muted)]"
                 onClick={async () => {
                   if (contextMenu.cardId && token) {
                     await api.deleteSharedCard(token, contextMenu.cardId);
@@ -252,7 +262,7 @@ const SharePage: React.FC = () => {
                   setContextMenu({ x: 0, y: 0, type: null });
                 }}
               >
-                <DeleteIcon className="inline w-5 h-5 text-red-600" /> Delete Card
+                <DeleteIcon className="inline h-5 w-5 text-red-600" /> Delete Card
               </button>
             )}
           </div>
@@ -292,9 +302,9 @@ const SharePage: React.FC = () => {
       {stale && (
         <button
           onClick={handleRefresh}
-          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg hover:bg-blue-700"
+          className="fixed right-4 bottom-4 rounded bg-blue-600 px-4 py-2 text-white shadow-lg hover:bg-blue-700"
         >
-          <RefreshIcon className="inline w-5 h-5 text-[#FFFFFF]" /> Refresh board
+          <RefreshIcon className="inline h-5 w-5 text-[#FFFFFF]" /> Refresh board
         </button>
       )}
     </div>

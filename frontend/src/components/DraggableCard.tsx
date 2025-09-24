@@ -33,7 +33,7 @@ const DraggableCard: React.FC<Props> = ({
   const isImage = (card as any).kind === "image";
   const canEdit = useMemo(
     () => !forceReadOnly && (!sharedMode || sharedMode.permission === "edit"),
-    [forceReadOnly, sharedMode]
+    [forceReadOnly, sharedMode],
   );
 
   // -------------------------
@@ -75,9 +75,7 @@ const DraggableCard: React.FC<Props> = ({
 
     // Optimistic UI position
     setCards((prev) =>
-      prev.map((c) =>
-        c.id === card.id ? { ...c, position_x: data.x, position_y: data.y } : c
-      )
+      prev.map((c) => (c.id === card.id ? { ...c, position_x: data.x, position_y: data.y } : c)),
     );
 
     const patch = { position_x: data.x, position_y: data.y };
@@ -140,9 +138,7 @@ const DraggableCard: React.FC<Props> = ({
 
     // Optimistic local
     setImgSize({ width: w, height: h });
-    setCards((prev) =>
-      prev.map((c) => (c.id === card.id ? { ...c, width: w, height: h } : c))
-    );
+    setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, width: w, height: h } : c)));
 
     // Persist once
     persistImagePatch({ width: w, height: h });
@@ -178,9 +174,7 @@ const DraggableCard: React.FC<Props> = ({
         onDragStop={(_e, d) => {
           // Optimistic position
           setCards((prev) =>
-            prev.map((c) =>
-              c.id === card.id ? { ...c, position_x: d.x, position_y: d.y } : c
-            )
+            prev.map((c) => (c.id === card.id ? { ...c, position_x: d.x, position_y: d.y } : c)),
           );
           // Persist
           persistImagePatch({ position_x: d.x, position_y: d.y });
@@ -195,8 +189,8 @@ const DraggableCard: React.FC<Props> = ({
             prev.map((c) =>
               c.id === card.id
                 ? { ...c, width: w, height: h, position_x: pos.x, position_y: pos.y }
-                : c
-            )
+                : c,
+            ),
           );
           // Persist
           persistImagePatch({
@@ -222,12 +216,12 @@ const DraggableCard: React.FC<Props> = ({
         <img
           src={(card as any).image_url}
           alt=""
-          className="block w-full h-full object-cover select-none pointer-events-none"
+          className="pointer-events-none block h-full w-full object-cover select-none"
           draggable={false}
           onLoad={handleImgLoad}
         />
         {/* Subtle affordance on hover */}
-        <div className="absolute inset-0 pointer-events-none rounded-lg ring-1 ring-transparent group-hover:ring-[var(--border)]" />
+        <div className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-transparent group-hover:ring-[var(--border)]" />
       </Rnd>
     );
   }
@@ -244,14 +238,14 @@ const DraggableCard: React.FC<Props> = ({
     >
       <div
         ref={nodeRef}
-        className="absolute card p-3 shadow-lg"
+        className="card absolute p-3 shadow-lg"
         style={{
           background: "var(--surface)",
           borderColor: "var(--border)",
           color: "var(--fg)",
-          width: 360,     // wider base
-          maxWidth: 480,  // allow some headroom if needed later
-          minWidth: 280,  // reasonable minimum
+          width: 360, // wider base
+          maxWidth: 480, // allow some headroom if needed later
+          minWidth: 280, // reasonable minimum
           cursor: canEdit ? "move" : "default",
         }}
         onContextMenu={(e) => {
@@ -265,7 +259,7 @@ const DraggableCard: React.FC<Props> = ({
           ref={textRef}
           value={text}
           readOnly={!canEdit}
-          className="card-textarea w-full resize-none border-none focus:ring-0 outline-none bg-transparent"
+          className="card-textarea w-full resize-none border-none bg-transparent outline-none focus:ring-0"
           onChange={(e) => {
             if (!canEdit) return;
             setText(e.target.value);

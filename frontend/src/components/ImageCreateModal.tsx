@@ -43,7 +43,7 @@ const ImageCreateModal: React.FC<Props> = ({ open, onClose, onCreateUrl, onUploa
     <div className="fixed inset-0 z-50 grid place-items-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="relative card w-[min(92vw,600px)] max-h-[85vh] overflow-auto">
+      <div className="card relative max-h-[85vh] w-[min(92vw,600px)] overflow-auto">
         {/* Header */}
         <div
           className="sticky top-0 border-b px-4 py-3"
@@ -51,17 +51,17 @@ const ImageCreateModal: React.FC<Props> = ({ open, onClose, onCreateUrl, onUploa
         >
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Add image</h3>
-            <button className="px-2 py-1 rounded hover:bg-[var(--muted)]" onClick={onClose}>
+            <button className="rounded px-2 py-1 hover:bg-[var(--muted)]" onClick={onClose}>
               ✖
             </button>
           </div>
         </div>
 
         {/* Body */}
-        <div className="p-4 space-y-4">
+        <div className="space-y-4 p-4">
           {/* Mode toggle */}
           <div
-            className="inline-flex rounded-xl border overflow-hidden"
+            className="inline-flex overflow-hidden rounded-xl border"
             style={{ borderColor: "var(--border)" }}
           >
             <button
@@ -82,28 +82,28 @@ const ImageCreateModal: React.FC<Props> = ({ open, onClose, onCreateUrl, onUploa
             </button>
           </div>
 
-            <div key={mode}>
-                {mode === "url" ? (
-                <div className="space-y-2">
-                    <label className="label block">Image URL</label>
-                    <input
-                    className="input w-full"
-                    placeholder="https://example.com/image.jpg"
-                    value={url} // stays a string
-                    onChange={(e) => setUrl(e.target.value)}
-                    />
-                </div>
-                ) : (
-                <div className="space-y-2">
-                    <label className="label block">Choose image</label>
-                    <input ref={fileRef} type="file" accept="image/*" /> 
-                </div>
-                )}
-            </div>
+          <div key={mode}>
+            {mode === "url" ? (
+              <div className="space-y-2">
+                <label className="label block">Image URL</label>
+                <input
+                  className="input w-full"
+                  placeholder="https://example.com/image.jpg"
+                  value={url} // stays a string
+                  onChange={(e) => setUrl(e.target.value)}
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="label block">Choose image</label>
+                <input ref={fileRef} type="file" accept="image/*" />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="px-4 pb-4 flex justify-end gap-2">
+        <div className="flex justify-end gap-2 px-4 pb-4">
           <button className="btn btn-muted" onClick={onClose} disabled={busy}>
             Cancel
           </button>

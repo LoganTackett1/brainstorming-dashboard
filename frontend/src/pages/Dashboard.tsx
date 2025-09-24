@@ -42,11 +42,11 @@ const Dashboard: React.FC = () => {
 
   const ownedBoards = useMemo(
     () => boards.filter((b) => b.owner_id === user?.user_id),
-    [boards, user]
+    [boards, user],
   );
   const sharedBoards = useMemo(
     () => boards.filter((b) => b.owner_id !== user?.user_id),
-    [boards, user]
+    [boards, user],
   );
 
   const displayedBoards = activeTab === "owned" ? ownedBoards : sharedBoards;
@@ -58,7 +58,7 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
           <div
-            className="inline-flex rounded-xl border overflow-hidden"
+            className="inline-flex overflow-hidden rounded-xl border"
             style={{ borderColor: "var(--border)" }}
           >
             <button
@@ -102,7 +102,7 @@ const Dashboard: React.FC = () => {
                 : "No boards have been shared with you yet."}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {displayedBoards.map((b) => (
                 <BoardCard key={b.id} board={b} setSettingsMenu={setSettingsMenu} />
               ))}

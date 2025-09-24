@@ -19,15 +19,15 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const fullBleed = pathname.startsWith("/boards") || pathname.startsWith("/share");
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col">
       <Navbar />
       <main
         className={
           fullBleed
             ? // Full-bleed for board/share
-              "flex-1 w-full px-0 py-0"
+              "w-full flex-1 px-0 py-0"
             : // Default app pages stay in a centered container
-              "flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+              "mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8"
         }
       >
         {children}

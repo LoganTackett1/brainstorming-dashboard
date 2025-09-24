@@ -32,7 +32,9 @@ const CreateBoardModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
       title="Create a new board"
       footer={
         <>
-          <button className="btn btn-muted" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn btn-muted" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
           <button className="btn btn-accent" onClick={submit} disabled={busy || !title.trim()}>
             {busy ? "Creating…" : "Create"}
           </button>

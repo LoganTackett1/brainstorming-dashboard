@@ -6,9 +6,9 @@ import BoardSettingsMenu from "../components/BoardSettingsMenu";
 import DraggableCard from "../components/DraggableCard";
 import ImageCreateModal from "../components/ImageCreateModal";
 import { type Board, type Card } from "../types";
-import RefreshIcon from '@/assets/refresh.svg?react';
-import ImageIcon from '@/assets/image.svg?react';
-import DeleteIcon from '@/assets/delete.svg?react';
+import RefreshIcon from "@/assets/refresh.svg?react";
+import ImageIcon from "@/assets/image.svg?react";
+import DeleteIcon from "@/assets/delete.svg?react";
 
 type Permission = "read" | "edit";
 type AccessEntry = {
@@ -111,7 +111,7 @@ const BoardPage: React.FC = () => {
           ? acl.find(
               (a) =>
                 a.user_id === user.user_id ||
-                a.email?.toLowerCase() === (user.email ?? "").toLowerCase()
+                a.email?.toLowerCase() === (user.email ?? "").toLowerCase(),
             )
           : undefined;
         setCollabPerm(mine?.permission ?? "read"); // default to read if something’s weird
@@ -171,7 +171,7 @@ const BoardPage: React.FC = () => {
           t: c.text,
           u: (c as any).updated_at ?? null,
         }))
-        .sort((a, b) => a.id - b.id)
+        .sort((a, b) => a.id - b.id),
     );
 
   useEffect(() => {
@@ -221,7 +221,7 @@ const BoardPage: React.FC = () => {
         <h2 className="text-2xl font-bold tracking-tight">{board.title}</h2>
         {permissionLabel && (
           <span
-            className={`text-xs px-2 py-1 rounded-full border capitalize ${
+            className={`rounded-full border px-2 py-1 text-xs capitalize ${
               permissionLabel === "read" ? "opacity-90" : ""
             }`}
             style={{
@@ -287,7 +287,7 @@ const BoardPage: React.FC = () => {
         {/* Context menu (create/delete) only when canEdit */}
         {contextMenu.type && canEdit && (
           <div
-            className="absolute z-50 rounded-xl border shadow-lg overflow-hidden"
+            className="absolute z-50 overflow-hidden rounded-xl border shadow-lg"
             style={{
               left: contextMenu.x,
               top: contextMenu.y,
@@ -299,7 +299,7 @@ const BoardPage: React.FC = () => {
             {contextMenu.type === "board" && (
               <>
                 <button
-                  className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
+                  className="block w-full px-4 py-2 text-left hover:bg-[var(--muted)]"
                   onClick={async () => {
                     await api.createCard(board.id, {
                       text: "New card",
@@ -315,20 +315,20 @@ const BoardPage: React.FC = () => {
 
                 {/* NEW: Create Image */}
                 <button
-                  className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
+                  className="block w-full px-4 py-2 text-left hover:bg-[var(--muted)]"
                   onClick={() => {
                     setPendingPos({ x: contextMenu.x, y: contextMenu.y });
                     setContextMenu({ x: 0, y: 0, type: null });
                     setImageModalOpen(true);
                   }}
                 >
-                  <ImageIcon className="inline w-5 h-5 text-[var(--fg-muted)]" /> Create Image
+                  <ImageIcon className="inline h-5 w-5 text-[var(--fg-muted)]" /> Create Image
                 </button>
               </>
             )}
             {contextMenu.type === "card" && (
               <button
-                className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left text-red-600"
+                className="block w-full px-4 py-2 text-left text-red-600 hover:bg-[var(--muted)]"
                 onClick={async () => {
                   if (contextMenu.cardId) {
                     await api.deleteCard(contextMenu.cardId);
@@ -337,7 +337,7 @@ const BoardPage: React.FC = () => {
                   setContextMenu({ x: 0, y: 0, type: null });
                 }}
               >
-                <DeleteIcon className="inline w-5 h-5 text-red-600" /> Delete Card
+                <DeleteIcon className="inline h-5 w-5 text-red-600" /> Delete Card
               </button>
             )}
           </div>
@@ -382,9 +382,9 @@ const BoardPage: React.FC = () => {
       {stale && (
         <button
           onClick={handleRefresh}
-          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg hover:bg-blue-700"
+          className="fixed right-4 bottom-4 rounded bg-blue-600 px-4 py-2 text-white shadow-lg hover:bg-blue-700"
         >
-          <RefreshIcon className="inline w-5 h-5 text-[#FFFFFF]" /> Refresh board
+          <RefreshIcon className="inline h-5 w-5 text-[#FFFFFF]" /> Refresh board
         </button>
       )}
     </div>

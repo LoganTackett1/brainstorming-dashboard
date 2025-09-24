@@ -40,7 +40,7 @@ const Login: React.FC = () => {
 
   return (
     <div
-      className="w-full grid place-items-center px-4 overflow-hidden"
+      className="grid w-full place-items-center overflow-hidden px-4"
       style={{ minHeight: `calc(100vh - ${NAV_H}px)` }} // account for sticky navbar
     >
       <form
@@ -52,7 +52,7 @@ const Login: React.FC = () => {
           <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--fg)" }}>
             Welcome back
           </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--fg-muted)" }}>
+          <p className="mt-1 text-sm" style={{ color: "var(--fg-muted)" }}>
             Sign in to continue to your boards.
           </p>
         </div>
@@ -69,7 +69,7 @@ const Login: React.FC = () => {
           </div>
         )}
 
-        <label className="label block mb-2 text-sm" style={{ color: "var(--fg-muted)" }}>
+        <label className="label mb-2 block text-sm" style={{ color: "var(--fg-muted)" }}>
           Email
         </label>
         <input
@@ -82,7 +82,7 @@ const Login: React.FC = () => {
           required
         />
 
-        <label className="label block mb-2 text-sm" style={{ color: "var(--fg-muted)" }}>
+        <label className="label mb-2 block text-sm" style={{ color: "var(--fg-muted)" }}>
           Password
         </label>
         <input
@@ -99,7 +99,7 @@ const Login: React.FC = () => {
           {submitting ? "Signing in…" : "Sign in"}
         </button>
 
-        <div className="mt-4 text-sm text-center" style={{ color: "var(--fg-muted)" }}>
+        <div className="mt-4 text-center text-sm" style={{ color: "var(--fg-muted)" }}>
           Don’t have an account?{" "}
           <Link to="/signup" className="underline hover:opacity-80" style={{ color: "var(--fg)" }}>
             Sign up

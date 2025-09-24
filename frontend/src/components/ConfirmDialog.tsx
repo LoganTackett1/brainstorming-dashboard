@@ -13,7 +13,9 @@ interface ConfirmDialogProps {
 }
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
-  open, onCancel, onConfirm,
+  open,
+  onCancel,
+  onConfirm,
   title = "Are you sure?",
   message = "This action cannot be undone.",
   confirmText = "Confirm",
@@ -21,10 +23,15 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   tone = "default",
 }) => {
   return (
-    <Modal open={open} onClose={onCancel} title={title}
+    <Modal
+      open={open}
+      onClose={onCancel}
+      title={title}
       footer={
         <>
-          <button className="btn btn-muted" onClick={onCancel}>{cancelText}</button>
+          <button className="btn btn-muted" onClick={onCancel}>
+            {cancelText}
+          </button>
           <button
             className={tone === "danger" ? "btn btn-danger" : "btn btn-accent"}
             onClick={onConfirm}

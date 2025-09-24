@@ -174,14 +174,23 @@ export const api = {
           position_y: number;
           width?: number;
           height?: number;
-        } // image card
+        }, // image card
   ) =>
     request(`/boards/${boardId}/cards`, {
       method: "POST",
       body: JSON.stringify(card),
     }),
 
-  updateCard: (id: number, card: { text?: string; position_x?: number; position_y?: number; width?: number; height?: number }) =>
+  updateCard: (
+    id: number,
+    card: {
+      text?: string;
+      position_x?: number;
+      position_y?: number;
+      width?: number;
+      height?: number;
+    },
+  ) =>
     request(`/cards/${id}`, {
       method: "PUT",
       body: JSON.stringify(card),
@@ -208,13 +217,23 @@ export const api = {
           position_y: number;
           width?: number;
           height?: number;
-        }
+        },
   ) =>
     request(`/share/${token}/cards`, {
       method: "POST",
       body: JSON.stringify(card),
     }),
-  updateSharedCard: (token: string, id: number, card: { text?: string; position_x?: number; position_y?: number; width?: number; height?: number }) =>
+  updateSharedCard: (
+    token: string,
+    id: number,
+    card: {
+      text?: string;
+      position_x?: number;
+      position_y?: number;
+      width?: number;
+      height?: number;
+    },
+  ) =>
     request(`/share/${token}/cards/${id}`, {
       method: "PUT",
       body: JSON.stringify(card),
