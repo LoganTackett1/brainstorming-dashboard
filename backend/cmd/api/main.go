@@ -38,6 +38,9 @@ func main() {
 	bucket := os.Getenv("S3_BUCKET")
 	thumbnailHandler := &board.ThumbnailHandler{DB: database, S3Client: s3Client, Bucket: bucket}
 
+	boardImageUpload := card.NewBoardImageUploadHandler(database) // POST /boards/{id}/images (authed owner/edit)
+	shareImageUpload := share.NewShareImageUploadHandler(database) // POST /share/{token}/images (share token, edit)
+
 	// --- User Routes ---
 	signupHandler := &user.SignupHandler{DB: database}
 	loginHandler := &user.LoginHandler{DB: database}
@@ -84,6 +87,10 @@ func main() {
 			thumbnailHandler.ServeHTTP(w, r)
 			return
 
+		case strings.HasSuffix(path, "/images"):
+			boardImageUpload.ServeHTTP(w, r)
+			return
+
 		default:
 			// fallback /boards/{id}
 			detailHandler := &boarddetail.BoardDetailHandler{DB: database}
@@ -95,6 +102,11 @@ func main() {
 	// --- Share routes ---
 	http.Handle("/share/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
+
+		if strings.HasSuffix(path, "/images") {
+			shareImageUpload.ServeHTTP(w, r)
+			return
+		}
 
 		if strings.HasSuffix(path, "/cards") || strings.Contains(path, "/cards/") {
 			shareCardHandler := &share.ShareCardHandler{DB: database}

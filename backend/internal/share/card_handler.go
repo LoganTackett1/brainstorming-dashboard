@@ -16,6 +16,25 @@ type ShareCardHandler struct {
 	DB *sql.DB
 }
 
+type createShareCardReq struct {
+	Kind      string   `json:"kind"` // "text" | "image" (default: "text")
+	Text      string   `json:"text,omitempty"`
+	ImageURL  string   `json:"image_url,omitempty"`
+	PositionX float64  `json:"position_x"`
+	PositionY float64  `json:"position_y"`
+	Width     *float64 `json:"width,omitempty"`  // images only
+	Height    *float64 `json:"height,omitempty"` // images only
+}
+
+type updateShareCardReq struct {
+	Text      *string  `json:"text,omitempty"`
+	PositionX *float64 `json:"position_x,omitempty"`
+	PositionY *float64 `json:"position_y,omitempty"`
+	Width     *float64 `json:"width,omitempty"`  // images only
+	Height    *float64 `json:"height,omitempty"` // images only
+}
+
+
 // Handles:
 // - GET    /share/{token}/cards
 // - POST   /share/{token}/cards
@@ -56,27 +75,62 @@ func (h *ShareCardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				middleware.JSONError(w, "Forbidden", http.StatusForbidden)
 				return
 			}
-			var body struct {
-				Text string  `json:"text"`
-				X    float64 `json:"position_x"`
-				Y    float64 `json:"position_y"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+
+			var body createShareCardReq
+			dec := json.NewDecoder(r.Body)
+			if err := dec.Decode(&body); err != nil {
 				middleware.JSONError(w, "Invalid request body", http.StatusBadRequest)
 				return
 			}
-			id, err := card.CreateCard(h.DB, boardID, body.Text, body.X, body.Y)
-			if err != nil {
-				middleware.JSONError(w, "Failed to create card", http.StatusInternalServerError)
-				return
+
+			kind := strings.ToLower(strings.TrimSpace(body.Kind))
+			if kind == "" {
+				kind = "text"
 			}
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"id":    id,
-				"text":  body.Text,
-				"x":     body.X,
-				"y":     body.Y,
-				"board": boardID,
-			})
+
+			switch kind {
+			case "text":
+				if strings.TrimSpace(body.Text) == "" {
+					body.Text = ""
+				}
+				id, err := card.CreateCard(h.DB, boardID, body.Text, body.PositionX, body.PositionY)
+				if err != nil {
+					middleware.JSONError(w, "Failed to create card", http.StatusInternalServerError)
+					return
+				}
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"id":          id,
+					"board_id":    boardID,
+					"kind":        "text",
+					"text":        body.Text,
+					"position_x":  body.PositionX,
+					"position_y":  body.PositionY,
+				})
+
+			case "image":
+				if strings.TrimSpace(body.ImageURL) == "" {
+					middleware.JSONError(w, "image_url is required for kind=image", http.StatusBadRequest)
+					return
+				}
+				id, err := card.CreateImageCard(h.DB, boardID, body.ImageURL, body.PositionX, body.PositionY, body.Width, body.Height)
+				if err != nil {
+					middleware.JSONError(w, "Failed to create image card", http.StatusInternalServerError)
+					return
+				}
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"id":          id,
+					"board_id":    boardID,
+					"kind":        "image",
+					"image_url":   body.ImageURL,
+					"position_x":  body.PositionX,
+					"position_y":  body.PositionY,
+					"width":       body.Width,
+					"height":      body.Height,
+				})
+
+			default:
+				middleware.JSONError(w, "invalid kind (must be 'text' or 'image')", http.StatusBadRequest)
+			}
 
 		default:
 			middleware.JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -99,25 +153,84 @@ func (h *ShareCardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		switch r.Method {
 		case http.MethodPut:
-			var body struct {
-				Text string  `json:"text"`
-				X    float64 `json:"position_x"`
-				Y    float64 `json:"position_y"`
+			var kind string
+			// Ensure the card belongs to this board + get kind for update rules
+			if err := h.DB.QueryRow("SELECT kind FROM cards WHERE id = ? AND board_id = ?", cardID, boardID).Scan(&kind); err != nil {
+				if err == sql.ErrNoRows {
+					middleware.JSONError(w, "Card not found", http.StatusNotFound)
+					return
+				}
+				middleware.JSONError(w, "Failed to fetch card", http.StatusInternalServerError)
+				return
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			kind = strings.ToLower(strings.TrimSpace(kind))
+			if kind == "" {
+				kind = "text"
+			}
+
+			var body updateShareCardReq
+			dec := json.NewDecoder(r.Body)
+			if err := dec.Decode(&body); err != nil {
 				middleware.JSONError(w, "Invalid request body", http.StatusBadRequest)
 				return
 			}
-			affected, err := card.UpdateCard(h.DB, cardID, body.Text, body.X, body.Y)
-			if err != nil {
-				middleware.JSONError(w, "Failed to update card", http.StatusInternalServerError)
-				return
+
+			// Default current positions if not provided
+			var curX, curY float64
+			if body.PositionX == nil || body.PositionY == nil {
+				if err := h.DB.QueryRow("SELECT position_x, position_y FROM cards WHERE id = ?", cardID).Scan(&curX, &curY); err != nil {
+					middleware.JSONError(w, "Failed to fetch card position", http.StatusInternalServerError)
+					return
+				}
 			}
-			if affected == 0 {
-				json.NewEncoder(w).Encode(map[string]string{"status": "no card found"})
-				return
+			x := curX
+			y := curY
+			if body.PositionX != nil {
+				x = *body.PositionX
 			}
-			json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+			if body.PositionY != nil {
+				y = *body.PositionY
+			}
+
+			switch kind {
+			case "text":
+				// If text omitted, keep current text
+				var txt string
+				if body.Text == nil {
+					if err := h.DB.QueryRow("SELECT text FROM cards WHERE id = ?", cardID).Scan(&txt); err != nil {
+						middleware.JSONError(w, "Failed to fetch card text", http.StatusInternalServerError)
+						return
+					}
+				} else {
+					txt = *body.Text
+				}
+
+				affected, err := card.UpdateCard(h.DB, cardID, txt, x, y)
+				if err != nil {
+					middleware.JSONError(w, "Failed to update card", http.StatusInternalServerError)
+					return
+				}
+				if affected == 0 {
+					json.NewEncoder(w).Encode(map[string]string{"status": "no card found"})
+					return
+				}
+				json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+
+			case "image":
+				affected, err := card.UpdateImageCard(h.DB, cardID, x, y, body.Width, body.Height)
+				if err != nil {
+					middleware.JSONError(w, "Failed to update image card", http.StatusInternalServerError)
+					return
+				}
+				if affected == 0 {
+					json.NewEncoder(w).Encode(map[string]string{"status": "no card found"})
+					return
+				}
+				json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+
+			default:
+				middleware.JSONError(w, "invalid card kind", http.StatusBadRequest)
+			}
 
 		case http.MethodDelete:
 			affected, err := card.DeleteCard(h.DB, cardID)
