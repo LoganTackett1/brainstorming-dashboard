@@ -29,7 +29,7 @@ async function request(path: string, options: RequestInit = {}) {
   // Merge with any custom headers
   headers = { ...headers, ...options.headers };
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers, cache: "no-store" });
 
   const data = await res.json().catch(() => null);
 

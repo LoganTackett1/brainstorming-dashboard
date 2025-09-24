@@ -42,6 +42,9 @@ const BoardPage: React.FC = () => {
     board: null as Board | null,
   });
 
+  // Stale polling banner state
+  const [stale, setStale] = useState(false);
+
   // Canvas ref for relative positioning
   const boardRef = useRef<HTMLDivElement | null>(null);
 
@@ -89,10 +92,13 @@ const BoardPage: React.FC = () => {
       try {
         const acl = (await api.getBoardAccess(board.id)) as AccessEntry[];
         const mine: AccessEntry | undefined = Array.isArray(acl)
-          ? acl.find(a => a.user_id === user.user_id || a.email?.toLowerCase() === (user.email ?? "").toLowerCase())
+          ? acl.find(
+              (a) =>
+                a.user_id === user.user_id ||
+                a.email?.toLowerCase() === (user.email ?? "").toLowerCase()
+            )
           : undefined;
         setCollabPerm(mine?.permission ?? "read"); // default to read if something’s weird
-        console.log(collabPerm);
       } catch {
         // If access list is not visible to collaborators, fall back to 'read' for safety.
         setCollabPerm("read");
@@ -136,6 +142,61 @@ const BoardPage: React.FC = () => {
       window.removeEventListener("click", handleClick);
     };
   }, [contextMenu]);
+
+  // ----- Stale detection every 5s -----
+  // We hash/snapshot only fields that affect the board view.
+  const snapshot = (arr: Card[]) =>
+    JSON.stringify(
+      (arr || [])
+        .map((c) => ({
+          id: c.id,
+          x: c.position_x,
+          y: c.position_y,
+          t: c.text,
+          u: (c as any).updated_at ?? null,
+        }))
+        .sort((a, b) => a.id - b.id)
+    );
+
+  useEffect(() => {
+    if (!id) return;
+    let alive = true;
+    let ticking = false;
+
+    const check = async () => {
+      if (ticking) return;
+      ticking = true;
+      try {
+        const latest = (await api.getCards(Number(id))) || [];
+        const localHash = snapshot(cards);
+        const remoteHash = snapshot(latest);
+        if (!alive) return;
+        if (localHash !== remoteHash) setStale(true);
+      } catch {
+        // ignore poll errors
+      } finally {
+        ticking = false;
+      }
+    };
+
+    const iv = window.setInterval(check, 5000);
+    return () => {
+      alive = false;
+      window.clearInterval(iv);
+    };
+    // Depend on id and cards snapshot so we notice local edits (and avoid stale intervals).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, snapshot(cards)]);
+
+  const handleRefresh = async () => {
+    console.log(cards);
+    const detailData = await api.getBoardDetail(Number(id));
+    const cardData = await api.getCards(Number(id));
+    console.log(cardData);
+    setBoard(detailData);
+    setCards(cardData || []);
+    setStale(false);
+  };
 
   if (loading) return <div className="p-6">Loading board...</div>;
   if (error || !board) return <div className="p-6 text-red-600">Error: {error ?? "Unknown"}</div>;
@@ -263,6 +324,16 @@ const BoardPage: React.FC = () => {
           closeMenu={() => setSettingsMenu({ open: false, board: null })}
           refreshBoards={fetchBoard}
         />
+      )}
+
+      {/* Refresh banner */}
+      {stale && (
+        <button
+          onClick={handleRefresh}
+          className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg hover:bg-blue-700"
+        >
+          🔄 Refresh board
+        </button>
       )}
     </div>
   );

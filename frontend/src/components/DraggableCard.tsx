@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Draggable, { type DraggableData, type DraggableEventHandler } from "react-draggable";
 import { api } from "../api/client";
 import { type Card } from "../types";
@@ -24,6 +24,12 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const [text, setText] = useState(card.text);
   const [dirty, setDirty] = useState(false);
+
+  // Sync on external changes
+  useEffect(() => {
+    setText(card.text);
+    setDirty(false);
+  }, [card.id, card.text]);
 
   // Determine editability
   const canEdit =
@@ -70,7 +76,7 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
   return (
     <Draggable
       nodeRef={nodeRef}
-      defaultPosition={{ x: card.position_x, y: card.position_y }}
+      position={{ x: card.position_x, y: card.position_y }}
       onStop={handleStop}
       disabled={!canEdit} // lock dragging when read-only
     >
