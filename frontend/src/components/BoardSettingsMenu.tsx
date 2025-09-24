@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import { type Board } from "../types";
+import ConfirmDialog from "./ConfirmDialog";
 
 type Tab = "general" | "share";
 type Permission = "read" | "edit";
@@ -56,6 +57,9 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
   const [accessLoading, setAccessLoading] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitePerm, setInvitePerm] = useState<Permission>("read");
+
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
 
   // Lock body scroll while open
   useEffect(() => {
@@ -452,12 +456,7 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
                 </p>
                 <button
                   className="btn btn-danger"
-                  onClick={async () => {
-                    if (!confirm("Delete this board? This cannot be undone.")) return;
-                    await api.deleteBoard(board.id);
-                    closeMenu();
-                    refreshBoards?.();
-                  }}
+                  onClick={() => setConfirmDeleteOpen(true)}
                 >
                   Delete board
                 </button>
@@ -465,6 +464,21 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
             </div>
           )}
         </div>
+          <ConfirmDialog
+            open={confirmDeleteOpen}
+            onCancel={() => setConfirmDeleteOpen(false)}
+            onConfirm={async () => {
+              await api.deleteBoard(board.id);
+              setConfirmDeleteOpen(false);
+              closeMenu();
+              refreshBoards?.();
+            }}
+            title="Delete board?"
+            message="Deleting a board is permanent. This cannot be undone."
+            confirmText="Delete"
+            cancelText="Cancel"
+            tone="danger"
+          />
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { AuthContext } from "../context/AuthContext";
 import BoardCard from "../components/BoardCard";
 import BoardSettingsMenu from "../components/BoardSettingsMenu";
 import { type Board } from "../types";
+import CreateBoardModal from "../components/CreateBoardModal";
 
 type TabKey = "owned" | "shared";
 
@@ -16,6 +17,8 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("owned");
+
+  const [createOpen, setCreateOpen] = useState(false);
 
   const [settingsMenu, setSettingsMenu] = useState<{
     open: boolean;
@@ -95,8 +98,8 @@ const Dashboard: React.FC = () => {
 
         {/* New Board button */}
         <div className="flex items-center gap-2">
-          <button onClick={onNewBoard} className="btn btn-primary">
-            + New Board
+          <button className="btn btn-accent" onClick={() => setCreateOpen(true)}>
+            + New board
           </button>
         </div>
       </div>
@@ -132,6 +135,12 @@ const Dashboard: React.FC = () => {
           refreshBoards={fetchBoards}
         />
       )}
+
+      <CreateBoardModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={fetchBoards /* whatever you already use to refresh */}
+      />
     </div>
   );
 };

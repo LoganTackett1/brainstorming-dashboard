@@ -81,6 +81,14 @@ const BoardPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   // If user is NOT owner, determine their permission (read/edit) from access list
   useEffect(() => {
     (async () => {

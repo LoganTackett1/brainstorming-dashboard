@@ -115,6 +115,14 @@ const SharePage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, snapshot(cards)]);
 
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   const handleRefresh = async () => {
     if (!token) return;
     const b = await api.getSharedBoard(token);
@@ -202,7 +210,7 @@ const SharePage: React.FC = () => {
         )}
       </div>
 
-      {/* 🔄 Refresh banner */}
+      {/* Refresh banner */}
       {stale && (
         <button
           onClick={handleRefresh}

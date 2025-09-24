@@ -79,6 +79,7 @@ const DraggableCard: React.FC<Props> = ({ card, setCards, onRightClick, sharedMo
       position={{ x: card.position_x, y: card.position_y }}
       onStop={handleStop}
       disabled={!canEdit} // lock dragging when read-only
+      cancel="textarea"
     >
       <div
         ref={nodeRef}
