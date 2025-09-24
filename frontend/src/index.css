@@ -82,7 +82,10 @@ body {
 /* Components */
 @layer components {
   .btn { @apply inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition select-none; }
-  .btn-muted { @apply text-gray-800 dark:text-gray-100; background: var(--muted); }
+  .btn-muted {
+    color: var(--fg);
+    background: var(--muted);
+  }
   .btn-muted:hover { filter: brightness(0.98); }
 
   .btn-accent { color: white; background: var(--accent-600); }

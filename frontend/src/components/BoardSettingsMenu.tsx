@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import { type Board } from "../types";
 import ConfirmDialog from "./ConfirmDialog";
+import CloseIcon from '@/assets/close.svg?react';
 
 type Tab = "general" | "share";
 type Permission = "read" | "edit";
@@ -235,7 +236,7 @@ const BoardSettingsMenu: React.FC<Props> = ({ board, closeMenu, refreshBoards })
         >
           <h3 className="text-lg font-semibold">Board settings</h3>
           <button onClick={closeMenu} className="px-2 py-1 rounded hover:bg-[var(--muted)]">
-            ✖
+            <CloseIcon className="w-5 h-5 text-[var(--fg-muted)] hover:text-[var(--fg)]" />
           </button>
         </div>
 

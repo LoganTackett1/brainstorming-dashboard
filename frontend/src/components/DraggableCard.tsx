@@ -18,9 +18,10 @@ interface Props {
   forceReadOnly?: boolean;
 }
 
-const DEFAULT_IMG_W = 320;
-const DEFAULT_IMG_H = 200;
 const MAX_AUTO_W = 640;
+
+// Text cards: grow the textarea until this height, then scroll internally
+const MAX_TEXTAREA_H = 260; // px
 
 const DraggableCard: React.FC<Props> = ({
   card,
@@ -45,6 +46,16 @@ const DraggableCard: React.FC<Props> = ({
   useEffect(() => {
     setText(card.text ?? "");
   }, [card.id, card.text]);
+
+  // Auto-size textarea on content changes (grow until MAX_TEXTAREA_H, then scroll)
+  useEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const h = Math.min(el.scrollHeight, MAX_TEXTAREA_H);
+    el.style.height = `${h}px`;
+    el.style.overflowY = el.scrollHeight > MAX_TEXTAREA_H ? "auto" : "hidden";
+  }, [text]);
 
   const saveText = async () => {
     if (!canEdit) return;
@@ -79,7 +90,7 @@ const DraggableCard: React.FC<Props> = ({
   // -------------------------
   // IMAGE CARD (react-rnd)
   // -------------------------
-  // Keep local size state (derived from props, with sensible default)
+  // Keep local size state (derived from props)
   const [imgSize, setImgSize] = useState<{ width: number; height: number }>({
     width: (card as any).width,
     height: (card as any).height,
@@ -89,9 +100,7 @@ const DraggableCard: React.FC<Props> = ({
     // If upstream changes (e.g., refresh) override local
     setImgSize({
       width: Number((card as any).width),
-        //(card as any).width != null ? Number((card as any).width) : DEFAULT_IMG_W,
       height: Number((card as any).height),
-        //(card as any).height != null ? Number((card as any).height) : DEFAULT_IMG_H,
     });
   }, [card.id, (card as any).width, (card as any).height]);
 
@@ -235,13 +244,14 @@ const DraggableCard: React.FC<Props> = ({
     >
       <div
         ref={nodeRef}
-        className="absolute card p-3 shadow-lg overflow-y-auto"
+        className="absolute card p-3 shadow-lg"
         style={{
           background: "var(--surface)",
           borderColor: "var(--border)",
           color: "var(--fg)",
-          maxWidth: 320,
-          minWidth: 220,
+          width: 360,     // wider base
+          maxWidth: 480,  // allow some headroom if needed later
+          minWidth: 280,  // reasonable minimum
           cursor: canEdit ? "move" : "default",
         }}
         onContextMenu={(e) => {
@@ -263,7 +273,10 @@ const DraggableCard: React.FC<Props> = ({
           onBlur={saveText}
           rows={3}
           placeholder={canEdit ? "Type…" : ""}
-          style={{ color: "var(--fg)" }}
+          style={{
+            color: "var(--fg)",
+            maxHeight: MAX_TEXTAREA_H, // effect clamps actual height + toggles overflow
+          }}
         />
       </div>
     </Draggable>

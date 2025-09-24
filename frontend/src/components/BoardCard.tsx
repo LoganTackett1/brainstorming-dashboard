@@ -2,6 +2,8 @@ import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { type Board } from "../types";
+import GearIcon from '@/assets/gear.svg?react';
+import BoardIcon from '@/assets/board.svg?react';
 
 interface BoardCardProps {
   board: Board;
@@ -31,7 +33,9 @@ const BoardCard: React.FC<BoardCardProps> = ({ board, setSettingsMenu }) => {
             loading="lazy"
           />
         ) : (
-          <div className="grid h-full w-full place-items-center text-4xl opacity-60">🗂️</div>
+          <div className="grid h-full w-full place-items-center text-4xl opacity-60">
+            <BoardIcon className="w-14 h-14 text-[var(--fg-muted)] hover:text-[var(--fg)]" />
+          </div>
         )}
       </div>
 
@@ -51,7 +55,7 @@ const BoardCard: React.FC<BoardCardProps> = ({ board, setSettingsMenu }) => {
             aria-label="Board settings"
             title="Board settings"
           >
-            ⚙️
+            <GearIcon className="w-5 h-5 text-[var(--fg-muted)] hover:text-[var(--fg)]" />
           </button>
         )}
       </div>

@@ -4,6 +4,9 @@ import { api } from "../api/client";
 import DraggableCard from "../components/DraggableCard";
 import ImageCreateModal from "../components/ImageCreateModal";
 import { type Board, type Card } from "../types";
+import RefreshIcon from "@/assets/refresh.svg?react";
+import ImageIcon from "@/assets/image.svg?react";
+import DeleteIcon from "@/assets/delete.svg?react";
 
 type Permission = "read" | "edit" | null;
 
@@ -120,6 +123,7 @@ const SharePage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, snapshot(cards)]);
 
+  // Disable body scroll on this page
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -127,6 +131,17 @@ const SharePage: React.FC = () => {
       document.body.style.overflow = prev;
     };
   }, []);
+
+  // Close context menu on any left click (matches Board.tsx behavior)
+  useEffect(() => {
+    const handleClick = () => setContextMenu({ x: 0, y: 0, type: null });
+    if (contextMenu.type) {
+      window.addEventListener("click", handleClick);
+    }
+    return () => {
+      window.removeEventListener("click", handleClick);
+    };
+  }, [contextMenu]);
 
   const handleRefresh = async () => {
     if (!token) return;
@@ -190,7 +205,7 @@ const SharePage: React.FC = () => {
         {/* Context menu for shared boards (edit only) */}
         {contextMenu.type && canEdit && (
           <div
-            className="absolute z-50 rounded-xl border shadow-lg"
+            className="absolute z-50 rounded-xl border shadow-lg overflow-hidden"
             style={{ left: contextMenu.x, top: contextMenu.y, background: "var(--surface)", borderColor: "var(--border)" }}
             onClick={() => setContextMenu({ x: 0, y: 0, type: null })}
           >
@@ -212,7 +227,7 @@ const SharePage: React.FC = () => {
                   + Create Card
                 </button>
 
-                {/* NEW: Create Image (shared) */}
+                {/* Create Image (shared) */}
                 <button
                   className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left"
                   onClick={() => {
@@ -221,9 +236,24 @@ const SharePage: React.FC = () => {
                     setImageModalOpen(true);
                   }}
                 >
-                  🖼 Create Image
+                  <ImageIcon className="inline w-5 h-5 text-[var(--fg-muted)]" /> Create Image
                 </button>
               </>
+            )}
+
+            {contextMenu.type === "card" && (
+              <button
+                className="block px-4 py-2 hover:bg-[var(--muted)] w-full text-left text-red-600"
+                onClick={async () => {
+                  if (contextMenu.cardId && token) {
+                    await api.deleteSharedCard(token, contextMenu.cardId);
+                    setCards((prev) => prev.filter((c) => c.id !== contextMenu.cardId));
+                  }
+                  setContextMenu({ x: 0, y: 0, type: null });
+                }}
+              >
+                <DeleteIcon className="inline w-5 h-5 text-red-600" /> Delete Card
+              </button>
             )}
           </div>
         )}
@@ -264,7 +294,7 @@ const SharePage: React.FC = () => {
           onClick={handleRefresh}
           className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg hover:bg-blue-700"
         >
-          🔄 Refresh board
+          <RefreshIcon className="inline w-5 h-5 text-[#FFFFFF]" /> Refresh board
         </button>
       )}
     </div>

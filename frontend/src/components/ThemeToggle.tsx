@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import SunIcon from '@/assets/sun.svg?react';
+import MoonIcon from '@/assets/moon.svg?react';
 
 function applyTheme(next: "light" | "dark") {
   const root = document.documentElement;
@@ -31,7 +33,7 @@ const ThemeToggle: React.FC = () => {
       aria-label="Toggle theme"
       className="rounded-lg px-3 py-2 hover:bg-[var(--muted)]"
     >
-      {mode === "dark" ? "🌙" : "☀️"}
+      {mode === "dark" ? <MoonIcon className="w-5 h-5 text-[var(--fg-muted)] hover:text-[var(--fg)]" /> : <SunIcon className="w-5 h-5 text-[var(--fg-muted)] hover:text-[var(--fg)]" />}
     </button>
   );
 };
