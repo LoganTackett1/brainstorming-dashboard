@@ -93,7 +93,6 @@ export const api = {
   uploadBoardImage: async (boardId: number, file: File): Promise<{ url: string }> => {
     const fd = new FormData();
     fd.append("file", file);
-    // Use raw fetch here to avoid JSON headers; request() handles FormData but we keep it explicit
     const res = await fetch(`${API_URL}/boards/${boardId}/images`, {
       method: "POST",
       headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,

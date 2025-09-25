@@ -41,14 +41,24 @@ func CreateCard(db *sql.DB, boardID int64, text string, x, y float64) (int64, er
 }
 
 func CreateImageCard(db *sql.DB, boardID int64, imageURL string, x, y float64, width, height *float64) (int64, error) {
-	res, err := db.Exec(
-		"INSERT INTO cards (board_id, kind, image_url, position_x, position_y, width, height) VALUES (?, 'image', ?, ?, ?, ?, ?)",
-		boardID, imageURL, x, y, width, height,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return res.LastInsertId()
+    // Convert pointer floats to driver-friendly values
+    var w interface{} = nil
+    var h interface{} = nil
+    if width != nil {
+        w = *width
+    }
+    if height != nil {
+        h = *height
+    }
+
+    res, err := db.Exec(
+        "INSERT INTO cards (board_id, kind, text, image_url, position_x, position_y, width, height) VALUES (?, 'image', ?, ?, ?, ?, ?, ?)",
+        boardID, "", imageURL, x, y, w, h,
+    )
+    if err != nil {
+        return 0, err
+    }
+    return res.LastInsertId()
 }
 
 func GetCardsByBoard(db *sql.DB, boardID int64) ([]Card, error) {
@@ -89,14 +99,22 @@ func UpdateCard(db *sql.DB, cardID int64, text string, x, y float64) (int64, err
 }
 
 func UpdateImageCard(db *sql.DB, cardID int64, x, y float64, width, height *float64) (int64, error) {
-	res, err := db.Exec(
-		"UPDATE cards SET position_x = ?, position_y = ?, width = ?, height = ? WHERE id = ?",
-		x, y, width, height, cardID,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected()
+    var w interface{} = nil
+    var h interface{} = nil
+    if width != nil {
+        w = *width
+    }
+    if height != nil {
+        h = *height
+    }
+    res, err := db.Exec(
+        "UPDATE cards SET position_x = ?, position_y = ?, width = ?, height = ? WHERE id = ?",
+        x, y, w, h, cardID,
+    )
+    if err != nil {
+        return 0, err
+    }
+    return res.RowsAffected()
 }
 
 func DeleteCard(db *sql.DB, cardID int64) (int64, error) {

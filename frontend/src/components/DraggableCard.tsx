@@ -14,14 +14,13 @@ interface Props {
   setCards: React.Dispatch<React.SetStateAction<Card[]>>;
   onRightClick: (x: number, y: number) => void;
   sharedMode?: SharedMode;
-  /** When true, the card is locked (no drag, no edit, no save) regardless of sharedMode. */
+  /** When true, the card is locked (no drag, no edit, no save) */
   forceReadOnly?: boolean;
 }
 
 const MAX_AUTO_W = 640;
 
-// Text cards: grow the textarea until this height, then scroll internally
-const MAX_TEXTAREA_H = 260; // px
+const MAX_TEXTAREA_H = 260;
 
 const DraggableCard: React.FC<Props> = ({
   card,
@@ -36,9 +35,7 @@ const DraggableCard: React.FC<Props> = ({
     [forceReadOnly, sharedMode],
   );
 
-  // -------------------------
-  // TEXT CARD (existing flow)
-  // -------------------------
+  // TEXT CARD
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const [text, setText] = useState(card.text ?? "");
@@ -47,7 +44,7 @@ const DraggableCard: React.FC<Props> = ({
     setText(card.text ?? "");
   }, [card.id, card.text]);
 
-  // Auto-size textarea on content changes (grow until MAX_TEXTAREA_H, then scroll)
+  // Auto-size textarea on content changes
   useEffect(() => {
     const el = textRef.current;
     if (!el) return;
@@ -85,10 +82,7 @@ const DraggableCard: React.FC<Props> = ({
     run.catch(console.error);
   };
 
-  // -------------------------
   // IMAGE CARD (react-rnd)
-  // -------------------------
-  // Keep local size state (derived from props)
   const [imgSize, setImgSize] = useState<{ width: number; height: number }>({
     width: (card as any).width,
     height: (card as any).height,
@@ -119,7 +113,7 @@ const DraggableCard: React.FC<Props> = ({
     }
   };
 
-  // First-time natural size fit (only if card has no size yet)
+  // First-time natural size fit
   const didAutoSizeRef = useRef(false);
   const handleImgLoad: React.ReactEventHandler<HTMLImageElement> = (e) => {
     if (didAutoSizeRef.current) return;
@@ -145,9 +139,7 @@ const DraggableCard: React.FC<Props> = ({
     didAutoSizeRef.current = true;
   };
 
-  // -------------------------
   // RENDER
-  // -------------------------
   if (isImage) {
     return (
       <Rnd
@@ -243,9 +235,9 @@ const DraggableCard: React.FC<Props> = ({
           background: "var(--surface)",
           borderColor: "var(--border)",
           color: "var(--fg)",
-          width: 360, // wider base
-          maxWidth: 480, // allow some headroom if needed later
-          minWidth: 280, // reasonable minimum
+          width: 360, 
+          maxWidth: 480,
+          minWidth: 280,
           cursor: canEdit ? "move" : "default",
         }}
         onContextMenu={(e) => {
@@ -269,7 +261,7 @@ const DraggableCard: React.FC<Props> = ({
           placeholder={canEdit ? "Type…" : ""}
           style={{
             color: "var(--fg)",
-            maxHeight: MAX_TEXTAREA_H, // effect clamps actual height + toggles overflow
+            maxHeight: MAX_TEXTAREA_H,
           }}
         />
       </div>

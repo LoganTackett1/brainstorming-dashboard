@@ -89,7 +89,7 @@ const ImageCreateModal: React.FC<Props> = ({ open, onClose, onCreateUrl, onUploa
                 <input
                   className="input w-full"
                   placeholder="https://example.com/image.jpg"
-                  value={url} // stays a string
+                  value={url}
                   onChange={(e) => setUrl(e.target.value)}
                 />
               </div>

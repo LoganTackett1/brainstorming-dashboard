@@ -1,9 +1,7 @@
 /* Tailwind v4 */
 @import "tailwindcss";
 
-/* --------------------------------------------------
-   Theme tokens (Notion-like, light & dark via .dark)
-   -------------------------------------------------- */
+/* -----Theme tokens----- */
 :root {
   --bg: #f6f5f4; /* page background */
   --surface: #ffffff; /* cards, modals */
@@ -12,7 +10,7 @@
   --fg-muted: #4b5563; /* secondary text */
   --border: #e7e5e4; /* subtle borders */
 
-  /* Brand & accents (harmonized, less “primary blue/red/green” harshness) */
+  /* Brand & accents */
   --accent-600: #6d28d9; /* violet-700 */
   --accent-700: #5b21b6;
   --accent-500: #7c3aed;
@@ -38,7 +36,6 @@
   --fg-muted: #9ca3af;
   --border: #1f2937;
 
-  /* Slightly brighter in dark for clarity */
   --accent-600: #a78bfa; /* violet-300/400 vibe */
   --accent-700: #8b5cf6;
   --accent-500: #c4b5fd;

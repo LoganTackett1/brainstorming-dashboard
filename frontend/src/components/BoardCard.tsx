@@ -23,7 +23,7 @@ const BoardCard: React.FC<BoardCardProps> = ({ board, setSettingsMenu }) => {
       onClick={go}
       role="button"
     >
-      {/* Top: thumbnail area, no padding, consistent size */}
+      {/* Top: thumbnail area */}
       <div className="aspect-[4/3] w-full overflow-hidden bg-[var(--muted)]">
         {board.thumbnail_url ? (
           <img

@@ -111,7 +111,7 @@ const Dashboard: React.FC = () => {
         </>
       )}
 
-      {/* Settings Modal (unchanged behavior) */}
+      {/* Settings Modal */}
       {settingsMenu.open && settingsMenu.board && (
         <BoardSettingsMenu
           board={settingsMenu.board}

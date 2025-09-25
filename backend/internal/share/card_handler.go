@@ -1,8 +1,10 @@
 package share
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,10 +12,14 @@ import (
 	"github.com/LoganTackett1/brainstorming-backend/internal/board"
 	"github.com/LoganTackett1/brainstorming-backend/internal/card"
 	"github.com/LoganTackett1/brainstorming-backend/internal/middleware"
+
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type ShareCardHandler struct {
-	DB *sql.DB
+	DB       *sql.DB
+	S3Client *s3.Client
+	Bucket   string
 }
 
 type createShareCardReq struct {
@@ -33,7 +39,6 @@ type updateShareCardReq struct {
 	Width     *float64 `json:"width,omitempty"`  // images only
 	Height    *float64 `json:"height,omitempty"` // images only
 }
-
 
 // Handles:
 // - GET    /share/{token}/cards
@@ -99,12 +104,12 @@ func (h *ShareCardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				json.NewEncoder(w).Encode(map[string]interface{}{
-					"id":          id,
-					"board_id":    boardID,
-					"kind":        "text",
-					"text":        body.Text,
-					"position_x":  body.PositionX,
-					"position_y":  body.PositionY,
+					"id":         id,
+					"board_id":   boardID,
+					"kind":       "text",
+					"text":       body.Text,
+					"position_x": body.PositionX,
+					"position_y": body.PositionY,
 				})
 
 			case "image":
@@ -118,14 +123,14 @@ func (h *ShareCardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				json.NewEncoder(w).Encode(map[string]interface{}{
-					"id":          id,
-					"board_id":    boardID,
-					"kind":        "image",
-					"image_url":   body.ImageURL,
-					"position_x":  body.PositionX,
-					"position_y":  body.PositionY,
-					"width":       body.Width,
-					"height":      body.Height,
+					"id":         id,
+					"board_id":   boardID,
+					"kind":       "image",
+					"image_url":  body.ImageURL,
+					"position_x": body.PositionX,
+					"position_y": body.PositionY,
+					"width":      body.Width,
+					"height":     body.Height,
 				})
 
 			default:
@@ -217,7 +222,28 @@ func (h *ShareCardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 
 			case "image":
-				affected, err := card.UpdateImageCard(h.DB, cardID, x, y, body.Width, body.Height)
+				// Preserve existing width/height when omitted (prevents resetting to NULL)
+				var curW, curH sql.NullFloat64
+				if err := h.DB.QueryRow("SELECT width, height FROM cards WHERE id = ?", cardID).Scan(&curW, &curH); err != nil {
+					middleware.JSONError(w, "Failed to fetch card size", http.StatusInternalServerError)
+					return
+				}
+
+				var wPtr, hPtr *float64
+				if body.Width != nil {
+					wPtr = body.Width
+				} else if curW.Valid {
+					val := curW.Float64
+					wPtr = &val
+				}
+				if body.Height != nil {
+					hPtr = body.Height
+				} else if curH.Valid {
+					val := curH.Float64
+					hPtr = &val
+				}
+
+				affected, err := card.UpdateImageCard(h.DB, cardID, x, y, wPtr, hPtr)
 				if err != nil {
 					middleware.JSONError(w, "Failed to update image card", http.StatusInternalServerError)
 					return
@@ -233,6 +259,33 @@ func (h *ShareCardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case http.MethodDelete:
+			// 1) Look up info for S3 cleanup (ensure card belongs to this share's board)
+			var kind, imageURL string
+			if err := h.DB.QueryRow("SELECT kind, COALESCE(image_url, '') FROM cards WHERE id = ? AND board_id = ?", cardID, boardID).
+				Scan(&kind, &imageURL); err != nil {
+				if err == sql.ErrNoRows {
+					json.NewEncoder(w).Encode(map[string]string{"status": "no card found"})
+					return
+				}
+				middleware.JSONError(w, "Failed to fetch card", http.StatusInternalServerError)
+				return
+			}
+
+			// 2) If image card, delete S3 object (best-effort)
+			if kind == "image" && imageURL != "" && h.S3Client != nil && h.Bucket != "" {
+				if idx := strings.LastIndex(imageURL, "images/"); idx != -1 {
+					s3Key := imageURL[idx:] // e.g. "images/<boardID>/<uuid>.jpg"
+					_, err := h.S3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+						Bucket: &h.Bucket,
+						Key:    &s3Key,
+					})
+					if err != nil {
+						log.Printf("WARN: failed to delete S3 object %s: %v", s3Key, err)
+					}
+				}
+			}
+
+			// 3) Delete DB row
 			affected, err := card.DeleteCard(h.DB, cardID)
 			if err != nil {
 				middleware.JSONError(w, "Failed to delete card", http.StatusInternalServerError)

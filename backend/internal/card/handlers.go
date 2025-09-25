@@ -1,6 +1,7 @@
 package card
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"log"
@@ -11,6 +12,8 @@ import (
 	"github.com/LoganTackett1/brainstorming-backend/internal/board"
 	"github.com/LoganTackett1/brainstorming-backend/internal/middleware"
 	"github.com/LoganTackett1/brainstorming-backend/internal/user"
+
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type CardHandler struct {
@@ -18,7 +21,9 @@ type CardHandler struct {
 }
 
 type CardOnlyHandler struct {
-	DB *sql.DB
+	DB       *sql.DB
+	S3Client *s3.Client
+	Bucket   string
 }
 
 type createCardReq struct {
@@ -74,7 +79,7 @@ func (h *CardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		switch r.Method {
-		//POST Create Card
+		// POST Create Card
 		case http.MethodPost:
 			if perm != board.PermissionOwner && perm != board.PermissionEdit {
 				middleware.JSONError(w, "Forbidden", http.StatusForbidden)
@@ -94,7 +99,7 @@ func (h *CardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			switch kind {
-			//Create Text Card
+			// Create Text Card
 			case "text":
 				if strings.TrimSpace(body.Text) == "" {
 					body.Text = ""
@@ -112,7 +117,7 @@ func (h *CardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					"position_x": body.PositionX,
 					"position_y": body.PositionY,
 				})
-			//Create Image Card
+			// Create Image Card
 			case "image":
 				if strings.TrimSpace(body.ImageURL) == "" {
 					middleware.JSONError(w, "image_url is required for kind=image", http.StatusBadRequest)
@@ -120,18 +125,19 @@ func (h *CardHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 				id, err := CreateImageCard(h.DB, boardID, body.ImageURL, body.PositionX, body.PositionY, body.Width, body.Height)
 				if err != nil {
+					log.Print(err)
 					middleware.JSONError(w, "Failed to create image card", http.StatusInternalServerError)
 					return
 				}
 				json.NewEncoder(w).Encode(map[string]interface{}{
-					"id":          id,
-					"board_id":    boardID,
-					"kind":        "image",
-					"image_url":   body.ImageURL,
-					"position_x":  body.PositionX,
-					"position_y":  body.PositionY,
-					"width":       body.Width,
-					"height":      body.Height,
+					"id":         id,
+					"board_id":   boardID,
+					"kind":       "image",
+					"image_url":  body.ImageURL,
+					"position_x": body.PositionX,
+					"position_y": body.PositionY,
+					"width":      body.Width,
+					"height":     body.Height,
 				})
 
 			default:
@@ -269,8 +275,38 @@ func (h *CardOnlyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 
 			case "image":
-				// For image cards, allow position/size updates.
-				affected, err := UpdateImageCard(h.DB, cardID, x, y, body.Width, body.Height)
+				// Default current pos/size if omitted
+				var curX, curY float64
+				var curW, curH sql.NullFloat64
+				if err := h.DB.QueryRow(
+					"SELECT position_x, position_y, width, height FROM cards WHERE id = ?",
+					cardID,
+				).Scan(&curX, &curY, &curW, &curH); err != nil {
+					middleware.JSONError(w, "Failed to fetch card dims", http.StatusInternalServerError)
+					return
+				}
+
+				x := curX
+				y := curY
+				if body.PositionX != nil { x = *body.PositionX }
+				if body.PositionY != nil { y = *body.PositionY }
+
+				// If width/height omitted, keep existing DB values
+				var wPtr, hPtr *float64
+				if body.Width != nil {
+					wPtr = body.Width
+				} else if curW.Valid {
+					val := curW.Float64
+					wPtr = &val
+				}
+				if body.Height != nil {
+					hPtr = body.Height
+				} else if curH.Valid {
+					val := curH.Float64
+					hPtr = &val
+				}
+
+				affected, err := UpdateImageCard(h.DB, cardID, x, y, wPtr, hPtr)
 				if err != nil {
 					middleware.JSONError(w, "Failed to update image card", http.StatusInternalServerError)
 					return
@@ -290,6 +326,34 @@ func (h *CardOnlyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				middleware.JSONError(w, "Forbidden", http.StatusForbidden)
 				return
 			}
+
+			// 1) Look up info for possible S3 cleanup (kind + image_url)
+			var kind, imageURL string
+			if err := h.DB.QueryRow("SELECT kind, COALESCE(image_url, ''), board_id FROM cards WHERE id = ?", cardID).
+				Scan(&kind, &imageURL, &boardID); err != nil {
+				if err == sql.ErrNoRows {
+					middleware.JSONError(w, "Card not found", http.StatusNotFound)
+					return
+				}
+				middleware.JSONError(w, "Failed to fetch card", http.StatusInternalServerError)
+				return
+			}
+
+			// 2) If image card, attempt to delete S3 object (best-effort)
+			if kind == "image" && imageURL != "" && h.S3Client != nil && h.Bucket != "" {
+				if idx := strings.LastIndex(imageURL, "images/"); idx != -1 {
+					s3Key := imageURL[idx:] // e.g. "images/<boardID>/<uuid>.jpg"
+					_, err := h.S3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+						Bucket: &h.Bucket,
+						Key:    &s3Key,
+					})
+					if err != nil {
+						log.Printf("WARN: failed to delete S3 object %s: %v", s3Key, err)
+					}
+				}
+			}
+
+			// 3) Delete the DB row
 			affected, err := DeleteCard(h.DB, cardID)
 			if err != nil {
 				middleware.JSONError(w, "Failed to delete card", http.StatusInternalServerError)

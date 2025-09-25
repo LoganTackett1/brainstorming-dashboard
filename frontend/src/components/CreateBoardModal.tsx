@@ -5,7 +5,7 @@ import { api } from "../api/client";
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreated?: () => void; // call to refetch
+  onCreated?: () => void;
 }
 
 const CreateBoardModal: React.FC<Props> = ({ open, onClose, onCreated }) => {

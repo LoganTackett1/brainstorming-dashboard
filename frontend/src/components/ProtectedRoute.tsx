@@ -10,7 +10,7 @@ const ProtectedRoute: React.FC<Props> = ({ children }) => {
   const { user, loading } = useContext(AuthContext);
 
   if (loading) {
-    return <div className="p-4">Loading...</div>; // don’t redirect yet
+    return <div className="p-4">Loading...</div>;
   }
 
   if (!user) {

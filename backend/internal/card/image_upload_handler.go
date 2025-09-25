@@ -48,7 +48,7 @@ func (h *BoardImageUploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	}
 
 	parts := strings.Split(r.URL.Path, "/")
-	// /boards/{id}/images → ["", "boards", "{id}", "images"]
+	// /boards/{id}/images
 	if len(parts) < 4 || parts[1] != "boards" || parts[3] != "images" {
 		middleware.JSONError(w, "Invalid path", http.StatusBadRequest)
 		return
@@ -70,7 +70,7 @@ func (h *BoardImageUploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// 10 MB max like your thumbnail handler
+	// 10 MB max
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		middleware.JSONError(w, "Invalid form data", http.StatusBadRequest)
 		return

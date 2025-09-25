@@ -86,7 +86,6 @@ const BoardPage: React.FC = () => {
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -114,7 +113,7 @@ const BoardPage: React.FC = () => {
                 a.email?.toLowerCase() === (user.email ?? "").toLowerCase(),
             )
           : undefined;
-        setCollabPerm(mine?.permission ?? "read"); // default to read if something’s weird
+        setCollabPerm(mine?.permission ?? "read");
       } catch {
         // If access list is not visible to collaborators, fall back to 'read' for safety.
         setCollabPerm("read");
@@ -160,7 +159,6 @@ const BoardPage: React.FC = () => {
   }, [contextMenu]);
 
   // ----- Stale detection every 5s -----
-  // We hash/snapshot only fields that affect the board view.
   const snapshot = (arr: Card[]) =>
     JSON.stringify(
       (arr || [])
@@ -200,7 +198,6 @@ const BoardPage: React.FC = () => {
       alive = false;
       window.clearInterval(iv);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, snapshot(cards)]);
 
   const handleRefresh = async () => {
@@ -274,7 +271,6 @@ const BoardPage: React.FC = () => {
             key={card.id}
             card={card}
             setCards={setCards}
-            // Force read-only on the board page if collaborator with read permission
             forceReadOnly={!canEdit}
             onRightClick={(x, y) => {
               if (!canEdit) return;
@@ -313,7 +309,7 @@ const BoardPage: React.FC = () => {
                   + Create Card
                 </button>
 
-                {/* NEW: Create Image */}
+                {/* Create Image */}
                 <button
                   className="block w-full px-4 py-2 text-left hover:bg-[var(--muted)]"
                   onClick={() => {

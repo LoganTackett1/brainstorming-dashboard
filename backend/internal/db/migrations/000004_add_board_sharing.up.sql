@@ -1,4 +1,3 @@
--- Table for direct user access
 CREATE TABLE board_access (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     board_id BIGINT NOT NULL,
@@ -10,7 +9,6 @@ CREATE TABLE board_access (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Table for public share links
 CREATE TABLE board_shares (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     board_id BIGINT NOT NULL,

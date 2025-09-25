@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { AuthContext } from "../context/AuthContext";
 
-const NAV_H = 56; // keep in sync with your navbar height
+const NAV_H = 56; // keep in sync with navbar height
 
 const Signup: React.FC = () => {
   const navigate = useNavigate();

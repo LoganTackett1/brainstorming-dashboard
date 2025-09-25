@@ -13,7 +13,6 @@ interface Props {
   refreshBoards?: () => void;
 }
 
-/** Access entry shape per backend */
 type AccessEntry = {
   id: number; // access row id
   board_id: number;
@@ -23,9 +22,8 @@ type AccessEntry = {
   created_at: string;
 };
 
-/** Share link shape per backend */
 type ShareEntry = {
-  id: number; // share id (used by deleteBoardShare)
+  id: number;
   board_id: number;
   token: string;
   permission: Permission;

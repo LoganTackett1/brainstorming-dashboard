@@ -120,7 +120,6 @@ const SharePage: React.FC = () => {
       alive = false;
       window.clearInterval(iv);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, snapshot(cards)]);
 
   // Disable body scroll on this page
@@ -132,7 +131,7 @@ const SharePage: React.FC = () => {
     };
   }, []);
 
-  // Close context menu on any left click (matches Board.tsx behavior)
+  // Close context menu on any left click
   useEffect(() => {
     const handleClick = () => setContextMenu({ x: 0, y: 0, type: null });
     if (contextMenu.type) {

@@ -38,7 +38,8 @@ func main() {
 	bucket := os.Getenv("S3_BUCKET")
 	thumbnailHandler := &board.ThumbnailHandler{DB: database, S3Client: s3Client, Bucket: bucket}
 
-	boardImageUpload := card.NewBoardImageUploadHandler(database) // POST /boards/{id}/images (authed owner/edit)
+	// Image upload handlers
+	boardImageUpload := card.NewBoardImageUploadHandler(database)  // POST /boards/{id}/images (authed owner/edit)
 	shareImageUpload := share.NewShareImageUploadHandler(database) // POST /share/{token}/images (share token, edit)
 
 	// --- User Routes ---
@@ -56,12 +57,12 @@ func main() {
 	http.Handle("/boards", user.AuthMiddleware(boardHandler)) // exact match only
 
 	// --- Card Routes ---
-	cardOnlyHandler := &card.CardOnlyHandler{DB: database}
-	http.Handle("/cards/", user.AuthMiddleware(cardOnlyHandler)) // exact match only
+	cardOnlyHandler := &card.CardOnlyHandler{DB: database, S3Client: s3Client, Bucket: bucket}
+	http.Handle("/cards/", user.AuthMiddleware(cardOnlyHandler))
 
 	// --- Permission Route for Share Links ---
 	permissionHandler := &share.PermissionHandler{DB: database}
-	http.Handle("/permission/", permissionHandler) // exact match only
+	http.Handle("/permission/", permissionHandler)
 
 	// --- /boards/ dispatch to sub-handlers ---
 	http.Handle("/boards/", user.AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -88,6 +89,7 @@ func main() {
 			return
 
 		case strings.HasSuffix(path, "/images"):
+			// POST /boards/{id}/images
 			boardImageUpload.ServeHTTP(w, r)
 			return
 
@@ -100,16 +102,19 @@ func main() {
 	})))
 
 	// --- Share routes ---
+	shareCardHandler := &share.ShareCardHandler{DB: database, S3Client: s3Client, Bucket: bucket}
+
 	http.Handle("/share/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 
+		// POST /share/{token}/images
 		if strings.HasSuffix(path, "/images") {
 			shareImageUpload.ServeHTTP(w, r)
 			return
 		}
 
+		// /share/{token}/cards and /share/{token}/cards/{id}
 		if strings.HasSuffix(path, "/cards") || strings.Contains(path, "/cards/") {
-			shareCardHandler := &share.ShareCardHandler{DB: database}
 			shareCardHandler.ServeHTTP(w, r)
 			return
 		}
@@ -122,9 +127,3 @@ func main() {
 	log.Println("Server running on :8080")
 	http.ListenAndServe(":8080", middleware.CORS(http.DefaultServeMux))
 }
-
-// test users (tokens expire 9/16/2025):
-// test@example.com mypassword eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTgxNzMyMjMsInN1YiI6MX0.OsZcexnuZtciNoIOTl5RylYKOe8VzKys3iQT7f7ahns
-// test2@email.com password123 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTgxNzU0MTgsInN1YiI6Mn0.RNYlbbUdaDVAbNB5wxUjuoLi2p0jXFPmttH4sybgbZs
-// test3@example.com mypassword3 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTg0MDQ3MzksInN1YiI6M30.wImBNPh19_wAp6XThXMRqBPLpWhZzW4HDDBdJFNWnrE
-// test5@example.com mypassword5

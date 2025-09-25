@@ -5,7 +5,7 @@ interface SettingItemProps<T> {
   type: "text" | "file" | "button";
   initialValue?: T;
   onSubmit: (value?: T) => Promise<void>;
-  buttonLabel?: string; // for button-only actions
+  buttonLabel?: string;
   successMessage?: string;
 }
 

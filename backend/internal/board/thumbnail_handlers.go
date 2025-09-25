@@ -117,7 +117,6 @@ func (h *ThumbnailHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Delete from S3 if URL exists
 		if key != "" {
 			// Extract key from URL (after bucket hostname)
-			// Example: https://bucket.s3.us-east-1.amazonaws.com/thumbnails/123.png
 			s3Key := key[strings.Index(key, "thumbnails/"):]
 			_, err = h.S3Client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
 				Bucket: &h.Bucket,

@@ -41,7 +41,7 @@ func (h *ShareImageUploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	}
 
 	parts := strings.Split(r.URL.Path, "/")
-	// /share/{token}/images → ["", "share", "{token}", "images"]
+	// /share/{token}/images
 	if len(parts) < 4 || parts[1] != "share" || parts[3] != "images" {
 		middleware.JSONError(w, "Invalid path", http.StatusBadRequest)
 		return
