@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import CloseIcon from "@/assets/close.svg?react";
 
 type Props = {
   open: boolean;
@@ -52,7 +53,7 @@ const ImageCreateModal: React.FC<Props> = ({ open, onClose, onCreateUrl, onUploa
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Add image</h3>
             <button className="rounded px-2 py-1 hover:bg-[var(--muted)]" onClick={onClose}>
-              ✖
+              <CloseIcon className="h-5 w-5 text-[var(--fg-muted)] hover:text-[var(--fg)]" />
             </button>
           </div>
         </div>
