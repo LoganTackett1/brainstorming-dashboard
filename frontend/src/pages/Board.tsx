@@ -9,6 +9,7 @@ import { type Board, type Card } from "../types";
 import RefreshIcon from "@/assets/refresh.svg?react";
 import ImageIcon from "@/assets/image.svg?react";
 import DeleteIcon from "@/assets/delete.svg?react";
+import GearIcon from "@/assets/gear.svg?react";
 
 type Permission = "read" | "edit";
 type AccessEntry = {
@@ -214,7 +215,8 @@ const BoardPage: React.FC = () => {
   return (
     <div className="w-full">
       {/* Title + access chip */}
-      <div className="flex items-center gap-3 px-4 pt-3 pb-2">
+      <div className="grid grid-rows-1 grid-cols-2 items-center gap-3 px-4 pt-3 pb-2">
+        <div className="flex items-center gap-3">
         <h2 className="text-2xl font-bold tracking-tight">{board.title}</h2>
         {permissionLabel && (
           <span
@@ -231,19 +233,19 @@ const BoardPage: React.FC = () => {
             {isOwner ? "Owner" : permissionLabel}
           </span>
         )}
-      </div>
-
-      {/* Settings cog for owner only */}
+        </div>
+        {/* Settings cog for owner only */}
       {isOwner && (
         <button
           onClick={() => setSettingsMenu({ open: true, board })}
-          className="absolute top-4 right-4 text-gray-600 hover:text-gray-900"
+          className="justify-self-end text-gray-600 hover:text-gray-900"
           title="Board settings"
           aria-label="Board settings"
         >
-          ⚙️
+          <GearIcon className="h-5 w-5 text-[var(--fg-muted)] hover:text-[var(--fg)]" />
         </button>
       )}
+      </div>
 
       {/* Canvas */}
       <div
