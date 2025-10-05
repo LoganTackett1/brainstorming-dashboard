@@ -58,10 +58,8 @@ const DraggableCard: React.FC<Props> = ({
   const saveText = async () => {
     if (!canEdit) return;
     try {
-      if (sharedMode)
-        await api.updateSharedCard(sharedMode.token, card.id, { text });
-      else
-        await api.updateCard(card.id, { text });
+      if (sharedMode) await api.updateSharedCard(sharedMode.token, card.id, { text });
+      else await api.updateCard(card.id, { text });
     } catch (err) {
       console.error(err);
     }
@@ -105,10 +103,8 @@ const DraggableCard: React.FC<Props> = ({
     height?: number;
   }) => {
     try {
-      if (sharedMode)
-        await api.updateSharedCard(sharedMode.token, card.id, patch as any);
-      else
-        await api.updateCard(card.id, patch as any);
+      if (sharedMode) await api.updateSharedCard(sharedMode.token, card.id, patch as any);
+      else await api.updateCard(card.id, patch as any);
     } catch (err) {
       console.error(err);
     }
@@ -131,9 +127,7 @@ const DraggableCard: React.FC<Props> = ({
     }
 
     setImgSize({ width: w, height: h });
-    setCards((prev) =>
-      prev.map((c) => (c.id === card.id ? { ...c, width: w, height: h } : c)),
-    );
+    setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, width: w, height: h } : c)));
     persistImagePatch({ width: w, height: h });
     didAutoSizeRef.current = true;
   };
@@ -170,9 +164,7 @@ const DraggableCard: React.FC<Props> = ({
           const posX = d.x;
           const posY = d.y;
           setCards((prev) =>
-            prev.map((c) =>
-              c.id === card.id ? { ...c, position_x: posX, position_y: posY } : c,
-            ),
+            prev.map((c) => (c.id === card.id ? { ...c, position_x: posX, position_y: posY } : c)),
           );
           persistImagePatch({ position_x: posX, position_y: posY });
         }}

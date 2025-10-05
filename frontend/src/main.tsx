@@ -24,10 +24,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <main
         className={
           fullBleed
-            ?
-              "w-full flex-1 px-0 py-0"
-            :
-              "mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8"
+            ? "w-full flex-1 px-0 py-0"
+            : "mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8"
         }
       >
         {children}

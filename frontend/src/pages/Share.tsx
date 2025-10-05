@@ -276,7 +276,7 @@ const SharePage: React.FC = () => {
       {/* Canvas */}
       <div
         ref={boardRef}
-        className="relative w-full h-full overflow-hidden"
+        className="relative h-full w-full overflow-hidden"
         onWheel={handleWheel}
         style={{
           background: "var(--surface)",
@@ -309,7 +309,7 @@ const SharePage: React.FC = () => {
             marginTop: "-2500px",
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: "center center",
-            border: "2px solid red"
+            border: "2px solid red",
           }}
         >
           {cards.map((card) => (
@@ -426,11 +426,8 @@ const SharePage: React.FC = () => {
           </div>
         )}
       </div>
-        {/* Feature Modal */}
-      <FeatureModal
-        open={showFeatureModal}
-        onClose={() => setShowFeatureModal(false)}
-      />
+      {/* Feature Modal */}
+      <FeatureModal open={showFeatureModal} onClose={() => setShowFeatureModal(false)} />
       {/* Image Modal (shared) */}
       <ImageCreateModal
         open={imageModalOpen}

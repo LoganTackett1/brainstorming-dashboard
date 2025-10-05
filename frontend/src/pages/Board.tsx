@@ -53,7 +53,6 @@ const BoardPage: React.FC = () => {
     boardY?: number;
   }>({ screenX: 0, screenY: 0, type: null });
 
-
   // Settings modal
   const [settingsMenu, setSettingsMenu] = useState({
     open: false,
@@ -85,7 +84,6 @@ const BoardPage: React.FC = () => {
     const data = await api.getCards(Number(id));
     setCards(data || []);
   };
-
 
   useEffect(() => {
     if (safeShouldShowFeatureModal()) setShowFeatureModal(true);
@@ -130,10 +128,7 @@ const BoardPage: React.FC = () => {
 
       if (!boardRef.current || !boardRef.current.contains(target)) return;
 
-      if (
-        target.closest("[data-board-card]") ||
-        target.closest("textarea, input")
-      ) {
+      if (target.closest("[data-board-card]") || target.closest("textarea, input")) {
         return;
       }
 
@@ -141,7 +136,6 @@ const BoardPage: React.FC = () => {
       lastMouseRef.current = { x: e.clientX, y: e.clientY };
       document.body.style.cursor = "grabbing";
     };
-
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isPanningRef.current || !lastMouseRef.current) return;
@@ -167,7 +161,7 @@ const BoardPage: React.FC = () => {
     };
   }, []);
 
-    // ZOOM LOGIC
+  // ZOOM LOGIC
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault();
 
@@ -177,7 +171,7 @@ const BoardPage: React.FC = () => {
 
     const k = nextZoom / zoom;
 
-    setPan(prev => ({ x: prev.x * k, y: prev.y * k }));
+    setPan((prev) => ({ x: prev.x * k, y: prev.y * k }));
     setZoom(nextZoom);
   };
 
@@ -223,25 +217,23 @@ const BoardPage: React.FC = () => {
     return collabPerm === "edit";
   }, [isOwner, collabPerm]);
 
+  const BOARD_W = 5000;
+  const BOARD_H = 5000;
 
-const BOARD_W = 5000;
-const BOARD_H = 5000;
+  const toCanvasCoords = (clientX: number, clientY: number) => {
+    const rect = boardRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
 
-const toCanvasCoords = (clientX: number, clientY: number) => {
-  const rect = boardRef.current?.getBoundingClientRect();
-  if (!rect) return { x: 0, y: 0 };
+    // Position of cursor relative to board center
+    const dx = clientX - (rect.left + rect.width / 2);
+    const dy = clientY - (rect.top + rect.height / 2);
 
-  // Position of cursor relative to board center
-  const dx = clientX - (rect.left + rect.width / 2);
-  const dy = clientY - (rect.top + rect.height / 2);
+    // Convert to board-space coords
+    const boardX = BOARD_W / 2 + (dx - pan.x) / zoom;
+    const boardY = BOARD_H / 2 + (dy - pan.y) / zoom;
 
-  // Convert to board-space coords
-  const boardX = BOARD_W / 2 + (dx - pan.x) / zoom;
-  const boardY = BOARD_H / 2 + (dy - pan.y) / zoom;
-
-  return { x: boardX, y: boardY };
-};
-
+    return { x: boardX, y: boardY };
+  };
 
   // Close context menu when clicking elsewhere
   useEffect(() => {
@@ -320,43 +312,43 @@ const toCanvasCoords = (clientX: number, clientY: number) => {
   return (
     <div className="w-full">
       {/* Title + access chip */}
-      <div className="grid grid-rows-1 grid-cols-2 items-center gap-3 px-4 pt-3 pb-2">
+      <div className="grid grid-cols-2 grid-rows-1 items-center gap-3 px-4 pt-3 pb-2">
         <div className="flex items-center gap-3">
-        <h2 className="text-2xl font-bold tracking-tight">{board.title}</h2>
-        {permissionLabel && (
-          <span
-            className={`rounded-full border px-2 py-1 text-xs capitalize ${
-              permissionLabel === "read" ? "opacity-90" : ""
-            }`}
-            style={{
-              borderColor: "var(--border)",
-              background: "var(--muted)",
-              color: "var(--fg-muted)",
-            }}
-            title={isOwner ? "Owner" : permissionLabel}
-          >
-            {isOwner ? "Owner" : permissionLabel}
-          </span>
-        )}
+          <h2 className="text-2xl font-bold tracking-tight">{board.title}</h2>
+          {permissionLabel && (
+            <span
+              className={`rounded-full border px-2 py-1 text-xs capitalize ${
+                permissionLabel === "read" ? "opacity-90" : ""
+              }`}
+              style={{
+                borderColor: "var(--border)",
+                background: "var(--muted)",
+                color: "var(--fg-muted)",
+              }}
+              title={isOwner ? "Owner" : permissionLabel}
+            >
+              {isOwner ? "Owner" : permissionLabel}
+            </span>
+          )}
         </div>
         {/* Settings cog for owner only */}
-      {isOwner && (
-        <button
-          onClick={() => setSettingsMenu({ open: true, board })}
-          className="justify-self-end text-gray-600 hover:text-gray-900"
-          title="Board settings"
-          aria-label="Board settings"
-        >
-          <GearIcon className="h-5 w-5 text-[var(--fg-muted)] hover:text-[var(--fg)]" />
-        </button>
-      )}
+        {isOwner && (
+          <button
+            onClick={() => setSettingsMenu({ open: true, board })}
+            className="justify-self-end text-gray-600 hover:text-gray-900"
+            title="Board settings"
+            aria-label="Board settings"
+          >
+            <GearIcon className="h-5 w-5 text-[var(--fg-muted)] hover:text-[var(--fg)]" />
+          </button>
+        )}
       </div>
 
       {/* Canvas */}
       <div
         id="canvas"
         ref={boardRef}
-        className="relative w-full h-full overflow-hidden"
+        className="relative h-full w-full overflow-hidden"
         onWheel={handleWheel}
         style={{
           background: "var(--surface)",
@@ -389,7 +381,7 @@ const toCanvasCoords = (clientX: number, clientY: number) => {
             marginTop: "-2500px",
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: "center center",
-            border: "2px solid red"
+            border: "2px solid red",
           }}
         >
           {cards.map((card) => (
@@ -507,10 +499,7 @@ const toCanvasCoords = (clientX: number, clientY: number) => {
         />
       )}
       {/* Feature Modal */}
-      <FeatureModal
-        open={showFeatureModal}
-        onClose={() => setShowFeatureModal(false)}
-      />
+      <FeatureModal open={showFeatureModal} onClose={() => setShowFeatureModal(false)} />
       {/* Image Modal */}
       <ImageCreateModal
         open={imageModalOpen}

@@ -40,7 +40,11 @@ const FeatureModal: React.FC<Props> = ({ open, onClose, storageKey = FEATURE_MOD
   }, [onClose]);
 
   const node = (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[2000] flex items-center justify-center">
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[2000] flex items-center justify-center"
+    >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40" onClick={handleOk} />
 
@@ -54,7 +58,7 @@ const FeatureModal: React.FC<Props> = ({ open, onClose, storageKey = FEATURE_MOD
         }}
       >
         <div className="p-5">
-          <h3 className="text-lg font-semibold mb-3">Quick tips</h3>
+          <h3 className="mb-3 text-lg font-semibold">Quick tips</h3>
           <ul className="space-y-2 text-sm">
             <li>• Right-click to create cards and delete them</li>
             <li>• Drag cards around</li>
@@ -62,7 +66,7 @@ const FeatureModal: React.FC<Props> = ({ open, onClose, storageKey = FEATURE_MOD
             <li>• Pan with click-drag; zoom with the scroll wheel</li>
           </ul>
 
-          <div className="mt-5 flex gap-2 justify-end">
+          <div className="mt-5 flex justify-end gap-2">
             <button
               onClick={handleDontShow}
               className="rounded-md border px-3 py-2 text-sm"
