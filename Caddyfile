@@ -1,0 +1,20 @@
+{
+  email certs@simplebrainstorm.com
+  acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
+simplebrainstorm.com {
+  encode zstd gzip
+
+  # Proxy API under /api (strip /api before proxying)
+  handle_path /api/* {
+    reverse_proxy http://api:8080
+  }
+
+  # SPA for everything else
+  handle {
+    root * /srv/www
+    try_files {path} /index.html
+    file_server
+  }
+}
