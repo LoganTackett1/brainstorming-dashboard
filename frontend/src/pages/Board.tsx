@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { AuthContext } from "../context/AuthContext";
 import BoardSettingsMenu from "../components/BoardSettingsMenu";
+import FeatureModal, { FEATURE_MODAL_KEY } from "../components/FeatureModal";
 import DraggableCard from "../components/DraggableCard";
 import ImageCreateModal from "../components/ImageCreateModal";
 import { type Board, type Card } from "../types";
@@ -21,6 +22,14 @@ type AccessEntry = {
   created_at: string;
 };
 
+const safeShouldShowFeatureModal = () => {
+  try {
+    return localStorage.getItem(FEATURE_MODAL_KEY) !== "true";
+  } catch {
+    return true;
+  }
+};
+
 const BoardPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useContext(AuthContext);
@@ -29,17 +38,21 @@ const BoardPage: React.FC = () => {
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showFeatureModal, setShowFeatureModal] = useState(false);
 
   // collaborator permission (for non-owners)
   const [collabPerm, setCollabPerm] = useState<Permission | null>(null);
 
   // Right-click context menu
   const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
+    screenX: number;
+    screenY: number;
     type: "card" | "board" | null;
     cardId?: number;
-  }>({ x: 0, y: 0, type: null });
+    boardX?: number;
+    boardY?: number;
+  }>({ screenX: 0, screenY: 0, type: null });
+
 
   // Settings modal
   const [settingsMenu, setSettingsMenu] = useState({
@@ -54,6 +67,12 @@ const BoardPage: React.FC = () => {
   // Stale polling banner state
   const [stale, setStale] = useState(false);
 
+  //pan and zoom
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const isPanningRef = useRef(false);
+  const lastMouseRef = useRef<{ x: number; y: number } | null>(null);
+
   // Canvas ref for relative positioning
   const boardRef = useRef<HTMLDivElement | null>(null);
 
@@ -66,6 +85,11 @@ const BoardPage: React.FC = () => {
     const data = await api.getCards(Number(id));
     setCards(data || []);
   };
+
+
+  useEffect(() => {
+    if (safeShouldShowFeatureModal()) setShowFeatureModal(true);
+  }, []);
 
   // Load board & cards
   useEffect(() => {
@@ -96,6 +120,66 @@ const BoardPage: React.FC = () => {
       document.body.style.overflow = prev;
     };
   }, []);
+
+  // PAN LOGIC
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return; // left click only
+
+      const target = e.target as HTMLElement;
+
+      if (!boardRef.current || !boardRef.current.contains(target)) return;
+
+      if (
+        target.closest("[data-board-card]") ||
+        target.closest("textarea, input")
+      ) {
+        return;
+      }
+
+      isPanningRef.current = true;
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+      document.body.style.cursor = "grabbing";
+    };
+
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isPanningRef.current || !lastMouseRef.current) return;
+      const dx = e.clientX - lastMouseRef.current.x;
+      const dy = e.clientY - lastMouseRef.current.y;
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+      setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+    };
+
+    const handleMouseUp = () => {
+      isPanningRef.current = false;
+      lastMouseRef.current = null;
+      document.body.style.cursor = "default";
+    };
+
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+    // ZOOM LOGIC
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+
+    const zoomIntensity = 0.0015;
+    const nextZoom = Math.min(3, Math.max(0.25, zoom * (1 - e.deltaY * zoomIntensity)));
+    if (nextZoom === zoom) return;
+
+    const k = nextZoom / zoom;
+
+    setPan(prev => ({ x: prev.x * k, y: prev.y * k }));
+    setZoom(nextZoom);
+  };
 
   // If user is NOT owner, determine their permission (read/edit) from access list
   useEffect(() => {
@@ -139,27 +223,48 @@ const BoardPage: React.FC = () => {
     return collabPerm === "edit";
   }, [isOwner, collabPerm]);
 
-  // Convert client coords to canvas-relative coords
-  const toCanvasCoords = (clientX: number, clientY: number) => {
-    const rect = boardRef.current?.getBoundingClientRect();
-    return {
-      x: clientX - (rect?.left ?? 0),
-      y: clientY - (rect?.top ?? 0),
-    };
-  };
+
+const BOARD_W = 5000;
+const BOARD_H = 5000;
+
+const toCanvasCoords = (clientX: number, clientY: number) => {
+  const rect = boardRef.current?.getBoundingClientRect();
+  if (!rect) return { x: 0, y: 0 };
+
+  // Position of cursor relative to board center
+  const dx = clientX - (rect.left + rect.width / 2);
+  const dy = clientY - (rect.top + rect.height / 2);
+
+  // Convert to board-space coords
+  const boardX = BOARD_W / 2 + (dx - pan.x) / zoom;
+  const boardY = BOARD_H / 2 + (dy - pan.y) / zoom;
+
+  return { x: boardX, y: boardY };
+};
+
 
   // Close context menu when clicking elsewhere
   useEffect(() => {
-    const handleClick = () => setContextMenu({ x: 0, y: 0, type: null });
+    const handleClick = () =>
+      setContextMenu({
+        screenX: 0,
+        screenY: 0,
+        boardX: undefined,
+        boardY: undefined,
+        cardId: undefined,
+        type: null,
+      });
+
     if (contextMenu.type) {
       window.addEventListener("click", handleClick);
     }
+
     return () => {
       window.removeEventListener("click", handleClick);
     };
-  }, [contextMenu]);
+  }, [contextMenu.type]);
 
-  // ----- Stale detection every 5s -----
+  // Stale detection every 5s
   const snapshot = (arr: Card[]) =>
     JSON.stringify(
       (arr || [])
@@ -249,8 +354,10 @@ const BoardPage: React.FC = () => {
 
       {/* Canvas */}
       <div
+        id="canvas"
         ref={boardRef}
-        className="relative w-full overflow-hidden"
+        className="relative w-full h-full overflow-hidden"
+        onWheel={handleWheel}
         style={{
           background: "var(--surface)",
           borderTop: "1px solid var(--border)",
@@ -258,65 +365,108 @@ const BoardPage: React.FC = () => {
         }}
         onContextMenu={(e) => {
           e.preventDefault();
-          if (!canEdit) return; // lock board-level menu for read-only
-          const p = toCanvasCoords(e.clientX, e.clientY);
+          if (!canEdit) return;
+
+          const boardPos = toCanvasCoords(e.clientX, e.clientY);
           setContextMenu({
-            x: p.x,
-            y: p.y,
+            screenX: e.clientX - (boardRef.current?.getBoundingClientRect().left ?? 0),
+            screenY: e.clientY - (boardRef.current?.getBoundingClientRect().top ?? 0),
+            boardX: boardPos.x,
+            boardY: boardPos.y,
             type: "board",
           });
         }}
       >
-        {/* Cards */}
-        {cards.map((card) => (
-          <DraggableCard
-            key={card.id}
-            card={card}
-            setCards={setCards}
-            forceReadOnly={!canEdit}
-            onRightClick={(x, y) => {
-              if (!canEdit) return;
-              const p = toCanvasCoords(x, y);
-              setContextMenu({ x: p.x, y: p.y, type: "card", cardId: card.id });
-            }}
-          />
-        ))}
+        {/* Inner fixed-size board */}
+        <div
+          className="absolute"
+          style={{
+            width: "5000px",
+            height: "5000px",
+            left: "50%",
+            top: "50%",
+            marginLeft: "-2500px",
+            marginTop: "-2500px",
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: "center center",
+            border: "2px solid red"
+          }}
+        >
+          {cards.map((card) => (
+            <DraggableCard
+              key={card.id}
+              card={card}
+              setCards={setCards}
+              forceReadOnly={!canEdit}
+              onRightClick={(x, y) => {
+                const p = toCanvasCoords(x, y);
+                setContextMenu({
+                  screenX: x - (boardRef.current?.getBoundingClientRect().left ?? 0),
+                  screenY: y - (boardRef.current?.getBoundingClientRect().top ?? 0),
+                  boardX: p.x,
+                  boardY: p.y,
+                  type: "card",
+                  cardId: card.id,
+                });
+              }}
+              zoom={zoom}
+              pan={pan}
+            />
+          ))}
+        </div>
 
-        {/* Context menu (create/delete) only when canEdit */}
+        {/* Context menu */}
         {contextMenu.type && canEdit && (
           <div
             className="absolute z-50 overflow-hidden rounded-xl border shadow-lg"
             style={{
-              left: contextMenu.x,
-              top: contextMenu.y,
+              left: contextMenu.screenX,
+              top: contextMenu.screenY,
               background: "var(--surface)",
               borderColor: "var(--border)",
             }}
-            onClick={() => setContextMenu({ x: 0, y: 0, type: null })}
+            onClick={() => setContextMenu({ screenX: 0, screenY: 0, type: null })}
           >
             {contextMenu.type === "board" && (
               <>
                 <button
                   className="block w-full px-4 py-2 text-left hover:bg-[var(--muted)]"
                   onClick={async () => {
+                    const safeX =
+                      typeof contextMenu.boardX === "number" && !isNaN(contextMenu.boardX)
+                        ? contextMenu.boardX
+                        : BOARD_W / 2; // default to board center
+                    const safeY =
+                      typeof contextMenu.boardY === "number" && !isNaN(contextMenu.boardY)
+                        ? contextMenu.boardY
+                        : BOARD_H / 2;
+
                     await api.createCard(board.id, {
                       text: "New card",
-                      position_x: contextMenu.x,
-                      position_y: contextMenu.y,
+                      position_x: safeX,
+                      position_y: safeY,
                     });
-                    setContextMenu({ x: 0, y: 0, type: null });
+
+                    setContextMenu({ screenX: 0, screenY: 0, type: null });
                     await fetchCards();
                   }}
                 >
                   + Create Card
                 </button>
-
-                {/* Create Image */}
                 <button
                   className="block w-full px-4 py-2 text-left hover:bg-[var(--muted)]"
                   onClick={() => {
-                    setPendingPos({ x: contextMenu.x, y: contextMenu.y });
-                    setContextMenu({ x: 0, y: 0, type: null });
+                    const safeX =
+                      typeof contextMenu.boardX === "number" && !isNaN(contextMenu.boardX)
+                        ? contextMenu.boardX
+                        : BOARD_W / 2;
+                    const safeY =
+                      typeof contextMenu.boardY === "number" && !isNaN(contextMenu.boardY)
+                        ? contextMenu.boardY
+                        : BOARD_H / 2;
+
+                    setPendingPos({ x: safeX, y: safeY });
+                    setContextMenu({ screenX: 0, screenY: 0, type: null });
                     setImageModalOpen(true);
                   }}
                 >
@@ -328,11 +478,17 @@ const BoardPage: React.FC = () => {
               <button
                 className="block w-full px-4 py-2 text-left text-red-600 hover:bg-[var(--muted)]"
                 onClick={async () => {
-                  if (contextMenu.cardId) {
-                    await api.deleteCard(contextMenu.cardId);
-                    setCards((prev) => prev.filter((c) => c.id !== contextMenu.cardId));
+                  const safeId =
+                    typeof contextMenu.cardId === "number" && !isNaN(contextMenu.cardId)
+                      ? contextMenu.cardId
+                      : null;
+
+                  if (safeId !== null) {
+                    await api.deleteCard(safeId);
+                    setCards((prev) => prev.filter((c) => c.id !== safeId));
                   }
-                  setContextMenu({ x: 0, y: 0, type: null });
+
+                  setContextMenu({ screenX: 0, screenY: 0, type: null });
                 }}
               >
                 <DeleteIcon className="inline h-5 w-5 text-red-600" /> Delete Card
@@ -350,7 +506,11 @@ const BoardPage: React.FC = () => {
           refreshBoards={fetchBoard}
         />
       )}
-
+      {/* Feature Modal */}
+      <FeatureModal
+        open={showFeatureModal}
+        onClose={() => setShowFeatureModal(false)}
+      />
       {/* Image Modal */}
       <ImageCreateModal
         open={imageModalOpen}

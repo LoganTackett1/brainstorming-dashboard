@@ -14,12 +14,12 @@ interface Props {
   setCards: React.Dispatch<React.SetStateAction<Card[]>>;
   onRightClick: (x: number, y: number) => void;
   sharedMode?: SharedMode;
-  /** When true, the card is locked (no drag, no edit, no save) */
   forceReadOnly?: boolean;
+  zoom: number;
+  pan: { x: number; y: number };
 }
 
 const MAX_AUTO_W = 640;
-
 const MAX_TEXTAREA_H = 260;
 
 const DraggableCard: React.FC<Props> = ({
@@ -28,6 +28,7 @@ const DraggableCard: React.FC<Props> = ({
   onRightClick,
   sharedMode,
   forceReadOnly,
+  zoom,
 }) => {
   const isImage = (card as any).kind === "image";
   const canEdit = useMemo(
@@ -44,7 +45,7 @@ const DraggableCard: React.FC<Props> = ({
     setText(card.text ?? "");
   }, [card.id, card.text]);
 
-  // Auto-size textarea on content changes
+  // Auto-size textarea
   useEffect(() => {
     const el = textRef.current;
     if (!el) return;
@@ -57,39 +58,40 @@ const DraggableCard: React.FC<Props> = ({
   const saveText = async () => {
     if (!canEdit) return;
     try {
-      if (sharedMode) {
+      if (sharedMode)
         await api.updateSharedCard(sharedMode.token, card.id, { text });
-      } else {
+      else
         await api.updateCard(card.id, { text });
-      }
     } catch (err) {
       console.error(err);
     }
   };
 
+  /* Handle stop drag for text cards */
   const handleStop: DraggableEventHandler = (_e, data: DraggableData) => {
     if (!canEdit) return;
 
-    // Optimistic UI position
+    const posX = data.x;
+    const posY = data.y;
+
     setCards((prev) =>
-      prev.map((c) => (c.id === card.id ? { ...c, position_x: data.x, position_y: data.y } : c)),
+      prev.map((c) => (c.id === card.id ? { ...c, position_x: posX, position_y: posY } : c)),
     );
 
-    const patch = { position_x: data.x, position_y: data.y };
+    const patch = { position_x: posX, position_y: posY };
     const run = sharedMode
       ? api.updateSharedCard(sharedMode.token, card.id, patch as any)
       : api.updateCard(card.id, patch as any);
     run.catch(console.error);
   };
 
-  // IMAGE CARD (react-rnd)
+  // IMAGE CARD
   const [imgSize, setImgSize] = useState<{ width: number; height: number }>({
     width: (card as any).width,
     height: (card as any).height,
   });
 
   useEffect(() => {
-    // If upstream changes (e.g., refresh) override local
     setImgSize({
       width: Number((card as any).width),
       height: Number((card as any).height),
@@ -103,17 +105,15 @@ const DraggableCard: React.FC<Props> = ({
     height?: number;
   }) => {
     try {
-      if (sharedMode) {
+      if (sharedMode)
         await api.updateSharedCard(sharedMode.token, card.id, patch as any);
-      } else {
+      else
         await api.updateCard(card.id, patch as any);
-      }
     } catch (err) {
       console.error(err);
     }
   };
 
-  // First-time natural size fit
   const didAutoSizeRef = useRef(false);
   const handleImgLoad: React.ReactEventHandler<HTMLImageElement> = (e) => {
     if (didAutoSizeRef.current) return;
@@ -130,19 +130,21 @@ const DraggableCard: React.FC<Props> = ({
       h = Math.round(h * ratio);
     }
 
-    // Optimistic local
     setImgSize({ width: w, height: h });
-    setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, width: w, height: h } : c)));
-
-    // Persist once
+    setCards((prev) =>
+      prev.map((c) => (c.id === card.id ? { ...c, width: w, height: h } : c)),
+    );
     persistImagePatch({ width: w, height: h });
     didAutoSizeRef.current = true;
   };
 
-  // RENDER
+  // ------------------- RENDER -------------------
+
+  // IMAGE CARD (react-rnd)
   if (isImage) {
     return (
       <Rnd
+        data-board-card
         size={{ width: imgSize.width, height: imgSize.height }}
         position={{ x: card.position_x, y: card.position_y }}
         bounds="parent"
@@ -163,34 +165,31 @@ const DraggableCard: React.FC<Props> = ({
         }
         lockAspectRatio={true}
         dragGrid={[1, 1]}
+        scale={zoom}
         onDragStop={(_e, d) => {
-          // Optimistic position
+          const posX = d.x;
+          const posY = d.y;
           setCards((prev) =>
-            prev.map((c) => (c.id === card.id ? { ...c, position_x: d.x, position_y: d.y } : c)),
+            prev.map((c) =>
+              c.id === card.id ? { ...c, position_x: posX, position_y: posY } : c,
+            ),
           );
-          // Persist
-          persistImagePatch({ position_x: d.x, position_y: d.y });
+          persistImagePatch({ position_x: posX, position_y: posY });
         }}
         onResizeStop={(_e, _dir, ref, _delta, pos) => {
           const w = parseFloat(ref.style.width);
           const h = parseFloat(ref.style.height);
-
-          // Optimistic size + position (rnd can move during resize)
+          const posX = pos.x;
+          const posY = pos.y;
           setImgSize({ width: w, height: h });
           setCards((prev) =>
             prev.map((c) =>
               c.id === card.id
-                ? { ...c, width: w, height: h, position_x: pos.x, position_y: pos.y }
+                ? { ...c, width: w, height: h, position_x: posX, position_y: posY }
                 : c,
             ),
           );
-          // Persist
-          persistImagePatch({
-            width: w,
-            height: h,
-            position_x: pos.x,
-            position_y: pos.y,
-          });
+          persistImagePatch({ width: w, height: h, position_x: posX, position_y: posY });
         }}
         style={{
           border: canEdit ? "1px solid var(--border)" : "none",
@@ -212,30 +211,31 @@ const DraggableCard: React.FC<Props> = ({
           draggable={false}
           onLoad={handleImgLoad}
         />
-        {/* Subtle affordance on hover */}
         <div className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-transparent group-hover:ring-[var(--border)]" />
       </Rnd>
     );
   }
 
-  // TEXT CARD
+  // TEXT CARD (react-draggable)
   return (
     <Draggable
       nodeRef={nodeRef}
       position={{ x: card.position_x, y: card.position_y }}
       onStop={handleStop}
-      disabled={!canEdit} // lock dragging when read-only
+      disabled={!canEdit}
       cancel=".card-textarea"
       bounds="parent"
+      scale={zoom}
     >
       <div
+        data-board-card
         ref={nodeRef}
         className="card absolute p-3 shadow-lg"
         style={{
           background: "var(--surface)",
           borderColor: "var(--border)",
           color: "var(--fg)",
-          width: 360, 
+          width: 360,
           maxWidth: 480,
           minWidth: 280,
           cursor: canEdit ? "move" : "default",
@@ -243,7 +243,7 @@ const DraggableCard: React.FC<Props> = ({
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (!canEdit) return; // don't open card menu if read-only
+          if (!canEdit) return;
           onRightClick(e.clientX, e.clientY);
         }}
       >
